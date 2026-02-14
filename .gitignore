@@ -1,0 +1,10 @@
+node_modules/
+dist/
+output/
+.env
+.env.local
+*.mp3
+*.wav
+.work/
+.podify-output/
+.next/

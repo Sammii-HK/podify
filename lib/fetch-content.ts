@@ -96,12 +96,18 @@ function stripHtmlToText(html: string): string {
   // Remove HTML comments
   text = text.replace(/<!--[\s\S]*?-->/g, "");
 
-  // Try to extract main/article content if available
-  const mainMatch = text.match(
-    /<(?:main|article)\b[^>]*>([\s\S]*?)<\/(?:main|article)>/i
-  );
-  if (mainMatch) {
-    text = mainMatch[1];
+  // Try to extract article or main content if available.
+  // Prefer <article> over <main> since some frameworks put a loading
+  // spinner in <main> while the real content is in <article>.
+  const articleMatch = text.match(/<article\b[^>]*>([\s\S]*?)<\/article>/i);
+  const mainMatch = text.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i);
+  const containerMatch = articleMatch && articleMatch[1].length > 200
+    ? articleMatch
+    : mainMatch && mainMatch[1].length > 200
+      ? mainMatch
+      : null;
+  if (containerMatch) {
+    text = containerMatch[1];
   }
 
   // Convert headings to text with newlines
@@ -199,31 +205,66 @@ function extractJsonLdText(data: any, parts: string[]): void {
 
 /**
  * Extract readable text from Next.js RSC Flight protocol chunks.
- * These appear as self.__next_f.push([...]) calls containing serialized
- * React component trees with text content as string segments.
+ * The Flight format serializes React component trees as escaped JSON.
+ * Text content appears as "children" values in the serialized elements.
  */
 function extractRscTextContent(html: string): string {
   const texts: string[] = [];
 
-  // Match self.__next_f.push() calls
-  const pushCalls = html.matchAll(/self\.__next_f\.push\(\s*\[([\s\S]*?)\]\s*\)/g);
+  // Match self.__next_f.push() calls — get the raw chunk content
+  const pushCalls = html.matchAll(/self\.__next_f\.push\(\s*\[[\d,]*"([\s\S]*?)"\s*\]\s*\)/g);
 
   for (const match of pushCalls) {
-    const content = match[1];
+    let chunk = match[1];
+    // Unescape the double-escaped JSON: \\" → "
+    chunk = chunk.replace(/\\\\"/g, '"').replace(/\\\\/g, "\\");
 
-    // Extract string literals that look like prose content (>40 chars, has spaces)
-    const strings = content.matchAll(/"((?:[^"\\]|\\.)*)"/g);
-    for (const strMatch of strings) {
-      let str = strMatch[1];
-      // Unescape
-      str = str.replace(/\\n/g, "\n").replace(/\\"/g, '"').replace(/\\\\/g, "\\");
-      // Only keep strings that look like actual content (not code/markup)
-      if (str.length > 40 && /\s/.test(str) && !str.includes("<") && !str.includes("{")) {
-        texts.push(str.trim());
+    // Extract "children":"text" values (direct text nodes)
+    const childrenStrings = chunk.matchAll(/"children"\s*:\s*"((?:[^"\\]|\\.)*)"/g);
+    for (const m of childrenStrings) {
+      const text = m[1]
+        .replace(/\\n/g, "\n")
+        .replace(/\\"/g, '"')
+        .replace(/\\\\/g, "\\")
+        .trim();
+      if (text.length > 0 && !isCssOrCode(text)) {
+        texts.push(text);
+      }
+    }
+
+    // Extract text from "children":["text", ...] arrays (mixed content nodes)
+    const childrenArrays = chunk.matchAll(/"children"\s*:\s*\[([^\]]*)\]/g);
+    for (const m of childrenArrays) {
+      const arrayContent = m[1];
+      const strings = arrayContent.matchAll(/"((?:[^"\\]|\\.)*)"/g);
+      for (const s of strings) {
+        const text = s[1]
+          .replace(/\\n/g, "\n")
+          .replace(/\\"/g, '"')
+          .replace(/\\\\/g, "\\")
+          .trim();
+        if (text.length > 1 && !isCssOrCode(text)) {
+          texts.push(text);
+        }
       }
     }
   }
 
-  // Deduplicate
-  return [...new Set(texts)].join("\n\n").trim();
+  // Deduplicate while preserving order
+  return [...new Set(texts)].join("\n").trim();
+}
+
+/** Filter out CSS classes, React internals, and HTML element names */
+function isCssOrCode(str: string): boolean {
+  // CSS class names
+  if (/^[\w-]+(?:\s[\w-]+)*$/.test(str) && /(?:flex|grid|text-|bg-|p-|m-|w-|h-|space-|rounded|border|gap|items-|justify-)/.test(str)) return true;
+  // React markers
+  if (str === "$" || str === "$undefined" || str.startsWith("$L") || str.startsWith("$R")) return true;
+  // HTML element names
+  if (/^(?:div|span|section|ul|li|h[1-6]|p|a|img|button|nav|header|footer|main|article)$/.test(str)) return true;
+  // Purely numeric or single special chars
+  if (/^[\d.•·–—]+$/.test(str)) return true;
+  // URLs and paths
+  if (/^(?:https?:\/\/|\/[\w-])/.test(str) && !str.includes(" ")) return true;
+  return false;
 }

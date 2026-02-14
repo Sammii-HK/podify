@@ -189,6 +189,8 @@ export async function generateAudio(
 
   console.log(`🔊 Generating ${script.length} audio clips (concurrency: ${CONCURRENCY})...`);
   console.log(`   TTS provider: ${config.ttsProvider}`);
+  console.log(`   HOST_A voice: ${config.voices.host_a.id} (${config.voices.host_a.name})`);
+  console.log(`   HOST_B voice: ${config.voices.host_b?.id || "MISSING — falling back to HOST_A!"} (${config.voices.host_b?.name || "N/A"})`);
 
   // Prepare all clip tasks up front
   const clipResults: (AudioClip | null)[] = new Array(script.length).fill(null);
@@ -210,6 +212,7 @@ export async function generateAudio(
       const filePath = join(clipsDir, fileName);
 
       try {
+        console.log(`   [clip ${idx}] ${line.speaker} → voice: ${voiceId}`);
         const { audio, durationMs } = await ttsFunc(line.text, voiceId);
         await writeFile(filePath, audio);
 

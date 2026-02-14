@@ -10,6 +10,33 @@ import { ScriptLine, AudioClip, PodcastConfig } from "@/lib/types";
 export type ProgressCallback = (message: string, percent: number) => void;
 
 // ============================================================
+// Pronunciation fixes for words Kokoro TTS mispronounces
+// Applied before sending to TTS — transcript keeps correct spelling
+// ============================================================
+
+const TTS_PRONUNCIATIONS: [RegExp, string][] = [
+  [/\bgrimoire\b/gi, "grim-wahr"],
+  [/\bgibbous\b/gi, "gib-us"],
+  [/\bsamhain\b/gi, "sow-in"],
+  [/\bmabon\b/gi, "may-bon"],
+  [/\bimbolc\b/gi, "im-olk"],
+  [/\blitha\b/gi, "lee-thah"],
+  [/\bostara\b/gi, "oh-star-ah"],
+  [/\bbeltane\b/gi, "bell-tayn"],
+  [/\bathame\b/gi, "ah-thah-may"],
+  [/\bdeosil\b/gi, "jess-ul"],
+  [/\bwiddershins\b/gi, "wid-er-shinz"],
+];
+
+function prepareForTTS(text: string): string {
+  let result = text;
+  for (const [pattern, replacement] of TTS_PRONUNCIATIONS) {
+    result = result.replace(pattern, replacement);
+  }
+  return result;
+}
+
+// ============================================================
 // TTS Provider: DeepInfra (Kokoro) — $0.62/1M chars
 // ============================================================
 
@@ -213,7 +240,8 @@ export async function generateAudio(
 
       try {
         console.log(`   [clip ${idx}] ${line.speaker} → voice: ${voiceId}`);
-        const { audio, durationMs } = await ttsFunc(line.text, voiceId);
+        const ttsText = prepareForTTS(line.text);
+        const { audio, durationMs } = await ttsFunc(ttsText, voiceId);
         await writeFile(filePath, audio);
 
         clipResults[idx] = { speaker: line.speaker, filePath, durationMs };

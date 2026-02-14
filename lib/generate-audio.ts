@@ -16,7 +16,7 @@ export type ProgressCallback = (message: string, percent: number) => void;
 
 const TTS_PRONUNCIATIONS: [RegExp, string][] = [
   [/\bgrimoire\b/gi, "grim-wahr"],
-  [/\bgibbous\b/gi, "gib-us"],
+  [/\bgibbous\b/gi, "gibbuss"],
   [/\bsamhain\b/gi, "sow-in"],
   [/\bmabon\b/gi, "may-bon"],
   [/\bimbolc\b/gi, "im-olk"],

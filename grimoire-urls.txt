@@ -1,0 +1,33 @@
+# ============================================================
+# Lunary Podcast — Grimoire URLs to Convert
+# ============================================================
+# One URL or grimoire path per line
+# Lines starting with # are comments
+# ============================================================
+
+# Week 1: Witch Types (your fastest growing content)
+/grimoire/modern-witchcraft/witch-types/kitchen-witch
+/grimoire/modern-witchcraft/witch-types/cosmic-witch
+/grimoire/modern-witchcraft/witch-types/green-witch
+/grimoire/modern-witchcraft/witch-types/sea-witch
+/grimoire/modern-witchcraft/witch-types/hedge-witch
+
+# Week 2: Candle Magic & Spells
+/grimoire/candle-magic/colors/red
+/grimoire/candle-magic/colors/black
+/grimoire/spells/moon-water-charging
+
+# Week 3: Astrology Fundamentals
+/grimoire/transits
+/grimoire/aspects/types/conjunction
+/grimoire/houses/overview/tenth
+/grimoire/houses/overview/eighth
+
+# Week 4: Divination
+/grimoire/divination/scrying/water-scrying
+/grimoire/tarot/nine-of-pentacles
+/grimoire/tarot/ace-of-pentacles
+
+# Week 5: Retrogrades & Events
+/grimoire/astronomy/retrogrades/mercury
+/grimoire/events/2027

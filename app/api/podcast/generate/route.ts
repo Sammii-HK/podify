@@ -1,11 +1,10 @@
 import "dotenv/config";
-import { NextResponse, after } from "next/server";
-import { createJob, updateJob, isAtCapacity } from "@/lib/jobs";
-import { generateEpisode } from "@/lib/pipeline";
+import { NextResponse } from "next/server";
+import { createJob, isAtCapacity } from "@/lib/jobs";
 import { fetchGrimoirePage, fetchUrl } from "@/lib/fetch-content";
 import { PodcastConfig, VOICE_PRESETS } from "@/lib/types";
 
-export const maxDuration = 300;
+export const maxDuration = 60;
 
 interface GenerateRequest {
   content?: string;
@@ -85,51 +84,20 @@ export async function POST(request: Request) {
 
     const job = await createJob();
 
-    // Start generation — waitUntil keeps the function alive after response
-    const outputDir = process.env.VERCEL ? "/tmp/.podify-output" : ".podify-output";
-    console.log(`[podify] Starting generation for job ${job.id}`);
-    after(async () => {
-      try {
-        const result = await generateEpisode(config, outputDir, async (event) => {
-          try {
-            await updateJob(job.id, {
-              status: "processing",
-              stage: event.stage,
-              message: event.message,
-              progress: event.percent,
-              ...(event.stage === "complete"
-                ? { status: "complete" as const }
-                : {}),
-            });
-          } catch (err) {
-            console.error(`[podify] Failed to update progress for job ${job.id}:`, err);
-          }
-        });
-        await updateJob(job.id, {
-          status: "complete",
-          progress: 100,
-          stage: "complete",
-          message: "Episode complete!",
-          result: {
-            audioPath: result.audioPath,
-            transcript: result.transcript,
-            durationSeconds: result.durationSeconds,
-            wordCount: result.wordCount,
-            costUsd: result.costUsd,
-          },
-        });
-      } catch (err) {
-        console.error(`[podify] Generation failed for job ${job.id}:`, err);
-        try {
-          await updateJob(job.id, {
-            status: "error",
-            message: err instanceof Error ? err.message : String(err),
-            error: err instanceof Error ? err.message : String(err),
-          });
-        } catch (updateErr) {
-          console.error(`[podify] Failed to update job ${job.id} with error status:`, updateErr);
-        }
-      }
+    // Fire-and-forget: trigger processing in a separate function invocation.
+    // This spawns an independent Vercel serverless function with its own maxDuration,
+    // so it won't be killed when this response completes.
+    const baseUrl = process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : `http://localhost:${process.env.PORT || 3000}`;
+
+    console.log(`[podify] Dispatching process request for job ${job.id}`);
+    fetch(`${baseUrl}/api/podcast/process/${job.id}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(config),
+    }).catch((err) => {
+      console.error(`[podify] Failed to dispatch process request for job ${job.id}:`, err);
     });
 
     return NextResponse.json({ jobId: job.id });

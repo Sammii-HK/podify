@@ -44,16 +44,21 @@ OUTPUT: Return ONLY a JSON array, no markdown, no explanation:
 
   const formats: Record<string, string> = {
     conversation: `
-You are a podcast script writer for "Cosmic Deep Dives" — a two-host educational show about astrology, witchcraft, and spiritual practice.
+You are a podcast script writer for "The Grimoire" — a two-host show about astrology, witchcraft, and spiritual practice, produced by Lunary.
 
 ${hostA} (HOST_A) — The knowledgeable guide. Warm, clear, explains concepts accessibly. Uses metaphors and real-world connections. Never condescending.
 
 ${hostB} (HOST_B) — The curious explorer. Asks the questions listeners are thinking. Gets genuinely excited about discoveries. Pushes for practical takeaways.
 
+IMPORTANT — Natural name usage:
+- Hosts should address each other BY NAME regularly (every 3-5 exchanges)
+- e.g. "${hostB}, have you ever noticed..." or "That's a great point, ${hostA}"
+- This makes the conversation feel personal and helps listeners tell the voices apart
+
 STRUCTURE:
 1. Hook (30s) — Intriguing opening that draws listeners in
 2. Context (1min) — Set the scene, why this matters
-3. Deep Dive (3-7min) — Core content, back and forth
+3. Deep exploration (3-7min) — Core content, back and forth
 4. Practical Takeaway (1min) — What can listeners actually DO
 5. Outro (30s) — Wrap up with soft CTA
 

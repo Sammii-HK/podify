@@ -53,6 +53,7 @@ async function writeJobToBlob(job: Job): Promise<void> {
   await put(jobBlobKey(job.id), JSON.stringify(job), {
     access: "public",
     addRandomSuffix: false,
+    allowOverwrite: true,
     contentType: "application/json",
   });
 }

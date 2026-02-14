@@ -66,6 +66,7 @@ export async function writeManifestToStore(
     await put("feed.json", JSON.stringify(manifest, null, 2), {
       access: "public",
       addRandomSuffix: false,
+      allowOverwrite: true,
       contentType: "application/json",
     });
     return;
@@ -88,6 +89,7 @@ export async function uploadEpisodeAudio(
   const blob = await put(`episodes/${date}_${slug}.mp3`, buffer, {
     access: "public",
     addRandomSuffix: false,
+    allowOverwrite: true,
     contentType: "audio/mpeg",
   });
   return blob.url;

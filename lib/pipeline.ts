@@ -18,7 +18,7 @@ export interface ProgressEvent {
   percent: number;
 }
 
-export type OnProgress = (event: ProgressEvent) => void;
+export type OnProgress = (event: ProgressEvent) => void | Promise<void>;
 
 export async function generateEpisode(
   config: PodcastConfig,
@@ -47,10 +47,10 @@ export async function generateEpisode(
   console.log(`${"=".repeat(60)}\n`);
 
   // Stage 1: Generate script
-  onProgress?.({ stage: "scripting", message: "Generating script...", percent: 0 });
+  await onProgress?.({ stage: "scripting", message: "Generating script...", percent: 0 });
 
   const script = await generateScript(config, (msg, pct) => {
-    onProgress?.({ stage: "scripting", message: msg, percent: pct });
+    Promise.resolve(onProgress?.({ stage: "scripting", message: msg, percent: pct })).catch(() => {});
   });
 
   // Save transcript
@@ -68,10 +68,10 @@ export async function generateEpisode(
   await writeFile(join(episodeDir, "transcript.txt"), readableTranscript);
 
   // Stage 2: Generate audio clips
-  onProgress?.({ stage: "audio", message: "Generating audio clips...", percent: 30 });
+  await onProgress?.({ stage: "audio", message: "Generating audio clips...", percent: 30 });
 
   const clips = await generateAudio(script, config, workDir, (msg, pct) => {
-    onProgress?.({ stage: "audio", message: msg, percent: pct });
+    Promise.resolve(onProgress?.({ stage: "audio", message: msg, percent: pct })).catch(() => {});
   });
 
   if (clips.length === 0) {
@@ -79,7 +79,7 @@ export async function generateEpisode(
   }
 
   // Stage 3: Assemble final podcast
-  onProgress?.({ stage: "assembly", message: "Assembling podcast...", percent: 80 });
+  await onProgress?.({ stage: "assembly", message: "Assembling podcast...", percent: 80 });
 
   const outputPath = join(episodeDir, `${slug}.mp3`);
   const { durationSeconds } = await assemblePodcast(
@@ -88,7 +88,7 @@ export async function generateEpisode(
     workDir,
     outputPath,
     (msg, pct) => {
-      onProgress?.({ stage: "assembly", message: msg, percent: pct });
+      Promise.resolve(onProgress?.({ stage: "assembly", message: msg, percent: pct })).catch(() => {});
     }
   );
 
@@ -185,7 +185,7 @@ export async function generateEpisode(
     // Non-fatal — .work/ cleanup is best-effort
   }
 
-  onProgress?.({ stage: "complete", message: "Episode complete!", percent: 100 });
+  await onProgress?.({ stage: "complete", message: "Episode complete!", percent: 100 });
 
   return {
     audioPath: outputPath,

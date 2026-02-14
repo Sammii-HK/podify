@@ -115,11 +115,16 @@ export async function POST(request: Request) {
         });
       })
       .catch(async (err) => {
-        await updateJob(job.id, {
-          status: "error",
-          message: err.message,
-          error: err.message,
-        });
+        console.error(`[podify] Generation failed for job ${job.id}:`, err);
+        try {
+          await updateJob(job.id, {
+            status: "error",
+            message: err.message,
+            error: err.message,
+          });
+        } catch (updateErr) {
+          console.error(`[podify] Failed to update job ${job.id} with error status:`, updateErr);
+        }
       });
 
     waitUntil(generationPromise);

@@ -22,6 +22,13 @@ interface GenerateRequest {
 
 export async function POST(request: Request) {
   try {
+    if (process.env.VERCEL) {
+      return NextResponse.json(
+        { error: "Generation requires ffmpeg — use the CLI locally" },
+        { status: 501 }
+      );
+    }
+
     if (isAtCapacity()) {
       return NextResponse.json(
         { error: "Too many concurrent jobs. Try again shortly." },

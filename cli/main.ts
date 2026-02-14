@@ -152,7 +152,7 @@ Options:
   --llm PROVIDER     openrouter | inference (default: openrouter)
   --music            Include background music (default: off)
   --instructions "..." Custom instructions for script generation
-  --rebuild-feed     Rebuild feed.json manifest from existing episodes on disk
+  --rebuild-feed     Rebuild feed.json from disk (uploads to Vercel Blob if BLOB_READ_WRITE_TOKEN is set)
 
 Examples:
   pnpm generate --grimoire "/grimoire/witch-types/kitchen-witch" --duration 5min

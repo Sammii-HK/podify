@@ -22,9 +22,9 @@ vi.mock("@/lib/storage", () => ({
   deleteEpisodeAudio: vi.fn().mockResolvedValue(undefined),
 }));
 
-// Mock ffprobe-static
-vi.mock("ffprobe-static", () => ({
-  path: "/usr/bin/ffprobe",
+// Mock ffmpeg path resolver
+vi.mock("@/lib/ffmpeg", () => ({
+  getFFmpegPath: vi.fn().mockResolvedValue("/usr/bin/ffmpeg"),
 }));
 
 describe("feed manifest", () => {

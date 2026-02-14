@@ -9,3 +9,4 @@ output/
 .podify-output/
 .next/
 .vercel
+.env*.local

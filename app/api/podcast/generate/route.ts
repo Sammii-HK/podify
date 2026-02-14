@@ -20,6 +20,7 @@ interface GenerateRequest {
   llm?: PodcastConfig["llmProvider"];
   includeMusic?: boolean;
   instructions?: string;
+  source?: string; // Override auto-detected source ("grimoire", "url", "text")
   async?: boolean; // If true, returns jobId immediately (caller must POST /process/:id)
 }
 
@@ -36,16 +37,16 @@ export async function POST(request: Request) {
 
     // Resolve content
     let content: string;
-    let source: string;
+    let detectedSource: string;
     if (body.content) {
       content = body.content;
-      source = "text";
+      detectedSource = "text";
     } else if (body.url) {
       content = await fetchUrl(body.url);
-      source = "url";
+      detectedSource = "url";
     } else if (body.grimoire_path) {
       content = await fetchGrimoirePage(body.grimoire_path);
-      source = "grimoire";
+      detectedSource = "grimoire";
     } else {
       return NextResponse.json(
         { error: "Provide content, url, or grimoire_path" },
@@ -81,7 +82,7 @@ export async function POST(request: Request) {
       llmProvider: body.llm || "openrouter",
       includeMusic: body.includeMusic || false,
       customInstructions: body.instructions,
-      source,
+      source: body.source || detectedSource,
     };
 
     const job = await createJob();

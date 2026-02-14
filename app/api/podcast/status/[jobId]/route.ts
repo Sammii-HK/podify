@@ -12,6 +12,10 @@ export async function GET(
     return NextResponse.json({ error: "Job not found" }, { status: 404 });
   }
 
+  const baseUrl = (
+    process.env.PODIFY_BASE_URL || "http://localhost:3456"
+  ).replace(/\/$/, "");
+
   return NextResponse.json({
     id: job.id,
     status: job.status,
@@ -20,6 +24,13 @@ export async function GET(
     message: job.message,
     result: job.status === "complete"
       ? {
+          slug: job.result?.slug,
+          blobUrl: job.result?.blobUrl,
+          audioUrl:
+            job.result?.blobUrl ||
+            (job.result?.slug
+              ? `${baseUrl}/api/podcast/episodes/${job.result.slug}/audio`
+              : undefined),
           transcript: job.result?.transcript,
           durationSeconds: job.result?.durationSeconds,
           wordCount: job.result?.wordCount,

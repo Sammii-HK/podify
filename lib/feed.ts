@@ -4,11 +4,10 @@
 
 import { readFile, stat, readdir } from "fs/promises";
 import { join } from "path";
-import { execFile } from "child_process";
-import { promisify } from "util";
+import { execSync } from "child_process";
 import { randomUUID } from "crypto";
 import { EpisodeMeta, FeedManifest } from "@/lib/types";
-import { path as ffprobePath } from "ffprobe-static";
+import { getFFmpegPath } from "@/lib/ffmpeg";
 import {
   readManifestFromStore,
   writeManifestToStore,
@@ -16,8 +15,6 @@ import {
   uploadEpisodeAudio,
   deleteEpisodeAudio,
 } from "@/lib/storage";
-
-const execFileAsync = promisify(execFile);
 
 const MAX_EPISODES = parseInt(process.env.MAX_EPISODES || "60", 10);
 
@@ -86,16 +83,17 @@ export async function addEpisodeToManifest(
 
 async function getAudioDuration(filePath: string): Promise<number> {
   try {
-    const { stdout } = await execFileAsync(ffprobePath, [
-      "-v",
-      "quiet",
-      "-print_format",
-      "json",
-      "-show_format",
-      filePath,
-    ]);
-    const data = JSON.parse(stdout);
-    return parseFloat(data.format?.duration || "0");
+    const ffmpeg = await getFFmpegPath();
+    const stderr = execSync(`"${ffmpeg}" -i "${filePath}" -f null - 2>&1`, {
+      encoding: "utf-8",
+    });
+    const match = stderr.match(/Duration:\s*(\d+):(\d+):(\d+\.\d+)/);
+    if (!match) return 0;
+    return (
+      parseInt(match[1]) * 3600 +
+      parseInt(match[2]) * 60 +
+      parseFloat(match[3])
+    );
   } catch {
     return 0;
   }

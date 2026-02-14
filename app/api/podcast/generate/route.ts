@@ -5,6 +5,8 @@ import { generateEpisode } from "@/lib/pipeline";
 import { fetchGrimoirePage, fetchUrl } from "@/lib/fetch-content";
 import { PodcastConfig, VOICE_PRESETS } from "@/lib/types";
 
+export const maxDuration = 300;
+
 interface GenerateRequest {
   content?: string;
   url?: string;
@@ -22,13 +24,6 @@ interface GenerateRequest {
 
 export async function POST(request: Request) {
   try {
-    if (process.env.VERCEL) {
-      return NextResponse.json(
-        { error: "Generation requires ffmpeg — use the CLI locally" },
-        { status: 501 }
-      );
-    }
-
     if (isAtCapacity()) {
       return NextResponse.json(
         { error: "Too many concurrent jobs. Try again shortly." },
@@ -40,12 +35,16 @@ export async function POST(request: Request) {
 
     // Resolve content
     let content: string;
+    let source: string;
     if (body.content) {
       content = body.content;
+      source = "text";
     } else if (body.url) {
       content = await fetchUrl(body.url);
+      source = "url";
     } else if (body.grimoire_path) {
       content = await fetchGrimoirePage(body.grimoire_path);
+      source = "grimoire";
     } else {
       return NextResponse.json(
         { error: "Provide content, url, or grimoire_path" },
@@ -81,12 +80,13 @@ export async function POST(request: Request) {
       llmProvider: body.llm || "openrouter",
       includeMusic: body.includeMusic || false,
       customInstructions: body.instructions,
+      source,
     };
 
     const job = createJob();
 
     // Fire-and-forget: start generation without awaiting
-    const outputDir = ".podify-output";
+    const outputDir = process.env.VERCEL ? "/tmp/.podify-output" : ".podify-output";
     generateEpisode(config, outputDir, (event) => {
       updateJob(job.id, {
         status: "processing",

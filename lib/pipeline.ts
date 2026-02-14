@@ -157,6 +157,7 @@ export async function generateEpisode(
       audioFileName: `${slug}.mp3`,
       wordCount,
       costUsd: totalCost,
+      source: config.source,
     };
 
     // Upload MP3 to Vercel Blob if configured

@@ -35,6 +35,9 @@ export interface PodcastConfig {
 
   /** Custom instructions for the script generator */
   customInstructions?: string;
+
+  /** Content source: "grimoire", "url", "text" */
+  source?: string;
 }
 
 export interface VoiceConfig {
@@ -124,6 +127,7 @@ export interface EpisodeMeta {
   wordCount: number;
   costUsd: number;
   blobUrl?: string;       // Vercel Blob URL for the MP3
+  source?: string;        // Content source: "grimoire", "url", "text"
 }
 
 export interface ShowConfig {

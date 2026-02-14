@@ -1,8 +1,8 @@
 // ============================================================
-// In-memory job manager for async podcast generation
-// Uses globalThis to survive HMR in Next.js dev mode
+// Job manager — in-memory locally, Vercel Blob on Vercel
 // ============================================================
 
+import { put, list } from "@vercel/blob";
 import { ScriptLine } from "@/lib/types";
 
 export interface Job {
@@ -22,6 +22,18 @@ export interface Job {
   error?: string;
 }
 
+function useBlob(): boolean {
+  return !!process.env.BLOB_READ_WRITE_TOKEN;
+}
+
+function jobBlobKey(id: string): string {
+  return `jobs/${id}.json`;
+}
+
+// ============================================================
+// In-memory store (local dev + same-invocation cache on Vercel)
+// ============================================================
+
 const globalJobs = globalThis as unknown as {
   __podify_jobs?: Map<string, Job>;
 };
@@ -31,10 +43,36 @@ if (!globalJobs.__podify_jobs) {
 }
 
 const jobs = globalJobs.__podify_jobs;
-const MAX_CONCURRENT = 3;
-const JOB_TTL_MS = 60 * 60 * 1000; // 1 hour
 
-export function createJob(): Job {
+// ============================================================
+// Blob helpers
+// ============================================================
+
+async function writeJobToBlob(job: Job): Promise<void> {
+  await put(jobBlobKey(job.id), JSON.stringify(job), {
+    access: "public",
+    addRandomSuffix: false,
+    contentType: "application/json",
+  });
+}
+
+async function readJobFromBlob(id: string): Promise<Job | undefined> {
+  try {
+    const { blobs } = await list({ prefix: jobBlobKey(id) });
+    const blob = blobs.find((b) => b.pathname === jobBlobKey(id));
+    if (!blob) return undefined;
+    const res = await fetch(blob.url);
+    return (await res.json()) as Job;
+  } catch {
+    return undefined;
+  }
+}
+
+// ============================================================
+// Public API
+// ============================================================
+
+export async function createJob(): Promise<Job> {
   const id = crypto.randomUUID();
   const job: Job = {
     id,
@@ -45,39 +83,52 @@ export function createJob(): Job {
     createdAt: Date.now(),
   };
   jobs.set(id, job);
+  if (useBlob()) await writeJobToBlob(job);
   return job;
 }
 
-export function getJob(id: string): Job | undefined {
-  return jobs.get(id);
+export async function getJob(id: string): Promise<Job | undefined> {
+  const local = jobs.get(id);
+  if (local) return local;
+  if (useBlob()) return readJobFromBlob(id);
+  return undefined;
 }
 
-export function updateJob(id: string, updates: Partial<Job>): void {
-  const job = jobs.get(id);
+export async function updateJob(
+  id: string,
+  updates: Partial<Job>,
+): Promise<void> {
+  let job = jobs.get(id);
+  if (!job && useBlob()) {
+    job = await readJobFromBlob(id);
+    if (job) jobs.set(id, job);
+  }
   if (job) {
     Object.assign(job, updates);
+    if (useBlob()) await writeJobToBlob(job);
   }
 }
 
-export function activeJobCount(): number {
-  let count = 0;
-  for (const job of jobs.values()) {
-    if (job.status === "pending" || job.status === "processing") {
-      count++;
+export async function isAtCapacity(): Promise<boolean> {
+  if (!useBlob()) {
+    let count = 0;
+    for (const job of jobs.values()) {
+      if (job.status === "pending" || job.status === "processing") count++;
     }
+    return count >= 3;
   }
-  return count;
-}
-
-export function isAtCapacity(): boolean {
-  return activeJobCount() >= MAX_CONCURRENT;
-}
-
-export function cleanupOldJobs(): void {
-  const now = Date.now();
-  for (const [id, job] of jobs) {
-    if (now - job.createdAt > JOB_TTL_MS) {
-      jobs.delete(id);
+  // On Vercel, check blob for active jobs
+  try {
+    const { blobs } = await list({ prefix: "jobs/" });
+    let active = 0;
+    for (const blob of blobs) {
+      const res = await fetch(blob.url);
+      const job = (await res.json()) as Job;
+      if (job.status === "pending" || job.status === "processing") active++;
+      if (active >= 3) return true;
     }
+    return false;
+  } catch {
+    return false;
   }
 }

@@ -24,7 +24,7 @@ interface GenerateRequest {
 
 export async function POST(request: Request) {
   try {
-    if (isAtCapacity()) {
+    if (await isAtCapacity()) {
       return NextResponse.json(
         { error: "Too many concurrent jobs. Try again shortly." },
         { status: 429 }
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
       source,
     };
 
-    const job = createJob();
+    const job = await createJob();
 
     // Fire-and-forget: start generation without awaiting
     const outputDir = process.env.VERCEL ? "/tmp/.podify-output" : ".podify-output";

@@ -7,9 +7,7 @@ import { writeFile, readFile } from "fs/promises";
 import { join, resolve } from "path";
 import { execSync } from "child_process";
 import { AudioClip, PodcastConfig } from "@/lib/types";
-import ffmpegPath from "ffmpeg-static";
-
-const FFMPEG = ffmpegPath ?? "ffmpeg";
+import { getFFmpegPath } from "@/lib/ffmpeg";
 
 export type ProgressCallback = (message: string, percent: number) => void;
 
@@ -19,6 +17,7 @@ export type ProgressCallback = (message: string, percent: number) => void;
  * so we normalize everything to 24kHz mono WAV first.
  */
 async function buildDialogue(
+  ffmpeg: string,
   clips: AudioClip[],
   workDir: string,
   outputPath: string
@@ -32,7 +31,7 @@ async function buildDialogue(
   for (let i = 0; i < clips.length; i++) {
     const normPath = resolve(join(normDir, `c${String(i).padStart(3, "0")}.wav`));
     execSync(
-      `"${FFMPEG}" -y -i "${resolve(clips[i].filePath)}" -ar 44100 -ac 2 -c:a pcm_s16le "${normPath}"`,
+      `"${ffmpeg}" -y -i "${resolve(clips[i].filePath)}" -ar 44100 -ac 2 -c:a pcm_s16le "${normPath}"`,
       { stdio: "pipe" }
     );
     parts.push(normPath);
@@ -42,7 +41,7 @@ async function buildDialogue(
       const gapMs = clips[i].speaker !== clips[i + 1].speaker ? 600 : 300;
       const gapPath = resolve(join(normDir, `g${String(i).padStart(3, "0")}.wav`));
       execSync(
-        `"${FFMPEG}" -y -f lavfi -i anullsrc=r=24000:cl=mono -t ${gapMs / 1000} -c:a pcm_s16le "${gapPath}"`,
+        `"${ffmpeg}" -y -f lavfi -i anullsrc=r=24000:cl=mono -t ${gapMs / 1000} -c:a pcm_s16le "${gapPath}"`,
         { stdio: "pipe" }
       );
       parts.push(gapPath);
@@ -56,7 +55,7 @@ async function buildDialogue(
 
   // Concatenate all WAV parts into final MP3 (44.1kHz stereo, 192kbps for quality)
   execSync(
-    `"${FFMPEG}" -y -f concat -safe 0 -i "${concatPath}" -ar 44100 -ac 2 -c:a libmp3lame -b:a 192k "${outputPath}"`,
+    `"${ffmpeg}" -y -f concat -safe 0 -i "${concatPath}" -ar 44100 -ac 2 -c:a libmp3lame -b:a 192k "${outputPath}"`,
     { stdio: "pipe" }
   );
 }
@@ -65,13 +64,14 @@ async function buildDialogue(
  * Mix dialogue with background music
  */
 function mixWithMusic(
+  ffmpeg: string,
   dialoguePath: string,
   musicPath: string,
   outputPath: string,
   musicVolume: number = 0.10
 ): void {
   execSync(
-    `"${FFMPEG}" -y -i "${dialoguePath}" -stream_loop -1 -i "${musicPath}" \
+    `"${ffmpeg}" -y -i "${dialoguePath}" -stream_loop -1 -i "${musicPath}" \
      -filter_complex "[1:a]volume=${musicVolume}[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=3" \
      -c:a libmp3lame -q:a 2 "${outputPath}"`,
     { stdio: "pipe" }
@@ -82,6 +82,7 @@ function mixWithMusic(
  * Add intro and outro if available
  */
 function addIntroOutro(
+  ffmpeg: string,
   mainPath: string,
   outputPath: string,
   introPath?: string,
@@ -100,7 +101,7 @@ function addIntroOutro(
   const tmpConcat = mainPath.replace(".mp3", "_final_concat.txt");
   execSync(`echo '${parts.join("\n")}' > "${tmpConcat}"`);
   execSync(
-    `"${FFMPEG}" -y -f concat -safe 0 -i "${tmpConcat}" -c:a libmp3lame -q:a 2 "${outputPath}"`,
+    `"${ffmpeg}" -y -f concat -safe 0 -i "${tmpConcat}" -c:a libmp3lame -q:a 2 "${outputPath}"`,
     { stdio: "pipe" }
   );
 }
@@ -108,10 +109,10 @@ function addIntroOutro(
 /**
  * Get duration of an audio file in seconds
  */
-function getAudioDuration(filePath: string): number {
+function getAudioDuration(ffmpeg: string, filePath: string): number {
   try {
     const stderr = execSync(
-      `"${FFMPEG}" -i "${filePath}" -f null - 2>&1`,
+      `"${ffmpeg}" -i "${filePath}" -f null - 2>&1`,
       { encoding: "utf-8" }
     );
     const match = stderr.match(/Duration:\s*(\d+):(\d+):(\d+\.\d+)/);
@@ -133,12 +134,13 @@ export async function assemblePodcast(
   outputPath: string,
   onProgress?: ProgressCallback
 ): Promise<{ durationSeconds: number }> {
-  console.log(`🎧 Assembling podcast...`);
+  const ffmpeg = await getFFmpegPath();
+  console.log(`🎧 Assembling podcast... (ffmpeg: ${ffmpeg})`);
   onProgress?.("Assembling podcast...", 82);
 
   // Step 1: Normalize clips and concatenate with pauses
   const dialoguePath = join(workDir, "dialogue.mp3");
-  await buildDialogue(clips, workDir, dialoguePath);
+  await buildDialogue(ffmpeg, clips, workDir, dialoguePath);
   console.log(`   ✅ Dialogue track assembled`);
   onProgress?.("Dialogue track assembled", 87);
 
@@ -151,7 +153,7 @@ export async function assemblePodcast(
     try {
       await readFile(musicPath);
       mixedPath = join(workDir, "mixed.mp3");
-      mixWithMusic(dialoguePath, musicPath, mixedPath, 0.10);
+      mixWithMusic(ffmpeg, dialoguePath, musicPath, mixedPath, 0.10);
       console.log(`   ✅ Background music mixed`);
       onProgress?.("Background music mixed", 90);
     } catch {
@@ -175,13 +177,14 @@ export async function assemblePodcast(
   } catch {}
 
   addIntroOutro(
+    ffmpeg,
     mixedPath,
     outputPath,
     hasIntro ? introPath : undefined,
     hasOutro ? outroPath : undefined
   );
 
-  const durationSeconds = getAudioDuration(outputPath);
+  const durationSeconds = getAudioDuration(ffmpeg, outputPath);
   console.log(`   ✅ Final podcast: ${Math.floor(durationSeconds / 60)}m ${Math.round(durationSeconds % 60)}s`);
   console.log(`   📁 Output: ${outputPath}`);
   onProgress?.("Assembly complete", 95);

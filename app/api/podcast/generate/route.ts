@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { NextResponse } from "next/server";
-import { createJob, isAtCapacity } from "@/lib/jobs";
+import { createJob, updateJob, isAtCapacity } from "@/lib/jobs";
 import { fetchGrimoirePage, fetchUrl } from "@/lib/fetch-content";
 import { PodcastConfig, VOICE_PRESETS } from "@/lib/types";
 
@@ -84,22 +84,10 @@ export async function POST(request: Request) {
 
     const job = await createJob();
 
-    // Fire-and-forget: trigger processing in a separate function invocation.
-    // This spawns an independent Vercel serverless function with its own maxDuration,
-    // so it won't be killed when this response completes.
-    const baseUrl = process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : `http://localhost:${process.env.PORT || 3000}`;
+    // Store config in the job so the process route can read it
+    await updateJob(job.id, { config });
 
-    console.log(`[podify] Dispatching process request for job ${job.id}`);
-    fetch(`${baseUrl}/api/podcast/process/${job.id}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(config),
-    }).catch((err) => {
-      console.error(`[podify] Failed to dispatch process request for job ${job.id}:`, err);
-    });
-
+    console.log(`[podify] Job ${job.id} created, waiting for client to trigger processing`);
     return NextResponse.json({ jobId: job.id });
   } catch (err) {
     return NextResponse.json(

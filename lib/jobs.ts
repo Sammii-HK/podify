@@ -3,7 +3,7 @@
 // ============================================================
 
 import { put, list } from "@vercel/blob";
-import { ScriptLine } from "@/lib/types";
+import { PodcastConfig, ScriptLine } from "@/lib/types";
 
 export interface Job {
   id: string;
@@ -12,6 +12,7 @@ export interface Job {
   stage: "scripting" | "audio" | "assembly" | "complete" | null;
   message: string;
   createdAt: number;
+  config?: PodcastConfig;
   result?: {
     audioPath: string;
     transcript: ScriptLine[];

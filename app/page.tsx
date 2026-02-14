@@ -54,6 +54,10 @@ export default function Home() {
 
       const { jobId } = await res.json();
       setState({ phase: "generating", jobId });
+
+      // Trigger processing in a separate serverless invocation.
+      // The browser keeps this connection alive for the full maxDuration.
+      fetch(`/api/podcast/process/${jobId}`, { method: "POST" }).catch(() => {});
     } catch {
       setState({ phase: "error", message: "Network error" });
     }

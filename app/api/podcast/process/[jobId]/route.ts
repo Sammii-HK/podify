@@ -2,14 +2,14 @@ import "dotenv/config";
 import { NextResponse } from "next/server";
 import { getJob, updateJob } from "@/lib/jobs";
 import { generateEpisode } from "@/lib/pipeline";
-import { PodcastConfig } from "@/lib/types";
 
-// This route runs as its own serverless function invocation,
-// so it gets the full maxDuration independent of the generate route.
+// This route runs as its own serverless function invocation triggered by the
+// client, so it gets the full maxDuration. The browser keeps the connection
+// open while this runs — no background task tricks needed.
 export const maxDuration = 300;
 
 export async function POST(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ jobId: string }> },
 ) {
   const { jobId } = await params;
@@ -23,7 +23,11 @@ export async function POST(
     return NextResponse.json({ error: "Job already started" }, { status: 409 });
   }
 
-  const config: PodcastConfig = await request.json();
+  if (!job.config) {
+    return NextResponse.json({ error: "Job has no config" }, { status: 400 });
+  }
+
+  const config = job.config;
   const outputDir = process.env.VERCEL ? "/tmp/.podify-output" : ".podify-output";
 
   console.log(`[podify] Processing job ${jobId}`);

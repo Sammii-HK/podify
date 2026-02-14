@@ -109,11 +109,20 @@ export async function updateJob(
   }
 }
 
+const STALE_MS = 10 * 60 * 1000; // 10 minutes
+
+function isActive(job: Job): boolean {
+  if (job.status !== "pending" && job.status !== "processing") return false;
+  // Consider jobs older than 10 minutes as stale
+  if (Date.now() - job.createdAt > STALE_MS) return false;
+  return true;
+}
+
 export async function isAtCapacity(): Promise<boolean> {
   if (!useBlob()) {
     let count = 0;
     for (const job of jobs.values()) {
-      if (job.status === "pending" || job.status === "processing") count++;
+      if (isActive(job)) count++;
     }
     return count >= 3;
   }
@@ -124,7 +133,7 @@ export async function isAtCapacity(): Promise<boolean> {
     for (const blob of blobs) {
       const res = await fetch(blob.url);
       const job = (await res.json()) as Job;
-      if (job.status === "pending" || job.status === "processing") active++;
+      if (isActive(job)) active++;
       if (active >= 3) return true;
     }
     return false;

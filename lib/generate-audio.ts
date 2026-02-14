@@ -42,10 +42,18 @@ function prepareForTTS(text: string): string {
 
 async function ttsDeepInfra(
   text: string,
-  voice: string
+  voice: string,
+  speed?: number
 ): Promise<{ audio: Buffer; durationMs: number }> {
   const apiKey = process.env.DEEPINFRA_API_KEY;
   if (!apiKey) throw new Error("DEEPINFRA_API_KEY not set");
+
+  const body: Record<string, unknown> = {
+    text,
+    voice,
+    output_format: "wav",
+  };
+  if (speed !== undefined) body.speed = speed;
 
   const res = await fetch(
     "https://api.deepinfra.com/v1/inference/hexgrad/Kokoro-82M",
@@ -55,11 +63,7 @@ async function ttsDeepInfra(
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        text,
-        voice,
-        output_format: "wav",
-      }),
+      body: JSON.stringify(body),
     }
   );
 
@@ -108,10 +112,14 @@ async function ttsDeepInfra(
 
 async function ttsInference(
   text: string,
-  voice: string
+  voice: string,
+  speed?: number
 ): Promise<{ audio: Buffer; durationMs: number }> {
   const apiKey = process.env.INFERENCE_API_KEY;
   if (!apiKey) throw new Error("INFERENCE_API_KEY not set");
+
+  const input: Record<string, unknown> = { text, voice };
+  if (speed !== undefined) input.speed = speed;
 
   const res = await fetch("https://api.inference.sh/v1/run", {
     method: "POST",
@@ -121,7 +129,7 @@ async function ttsInference(
     },
     body: JSON.stringify({
       app: "infsh/kokoro-tts",
-      input: { text, voice },
+      input,
     }),
   });
 
@@ -150,7 +158,8 @@ async function ttsInference(
 
 async function ttsOpenAI(
   text: string,
-  voice: string
+  voice: string,
+  speed?: number
 ): Promise<{ audio: Buffer; durationMs: number }> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("OPENAI_API_KEY not set");
@@ -178,6 +187,7 @@ async function ttsOpenAI(
       voice: openaiVoice,
       input: text,
       response_format: "mp3",
+      ...(speed !== undefined && { speed }),
     }),
   });
 
@@ -230,18 +240,20 @@ export async function generateAudio(
   for (let i = 0; i < script.length; i++) {
     const task = (async (idx: number) => {
       const line = script[idx];
-      const voiceId =
+      const voiceConfig =
         line.speaker === "HOST_A"
-          ? config.voices.host_a.id
-          : config.voices.host_b?.id || config.voices.host_a.id;
+          ? config.voices.host_a
+          : config.voices.host_b || config.voices.host_a;
+      const voiceId = voiceConfig.id;
+      const voiceSpeed = voiceConfig.speed;
 
       const fileName = `clip_${String(idx).padStart(3, "0")}_${line.speaker}.mp3`;
       const filePath = join(clipsDir, fileName);
 
       try {
-        console.log(`   [clip ${idx}] ${line.speaker} → voice: ${voiceId}`);
+        console.log(`   [clip ${idx}] ${line.speaker} → voice: ${voiceId} speed: ${voiceSpeed ?? 1.0}`);
         const ttsText = prepareForTTS(line.text);
-        const { audio, durationMs } = await ttsFunc(ttsText, voiceId);
+        const { audio, durationMs } = await ttsFunc(ttsText, voiceId, voiceSpeed);
         await writeFile(filePath, audio);
 
         clipResults[idx] = { speaker: line.speaker, filePath, durationMs };

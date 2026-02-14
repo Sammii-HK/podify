@@ -43,6 +43,7 @@ export interface PodcastConfig {
 export interface VoiceConfig {
   id: string;
   name: string;
+  speed?: number; // TTS speed multiplier (default 1.0)
 }
 
 export interface ScriptLine {
@@ -86,8 +87,8 @@ export interface PodcastResult {
 export const VOICE_PRESETS = {
   // Recommended pairs
   luna_and_sol: {
-    host_a: { id: "af_heart", name: "Luna" },
-    host_b: { id: "af_bella", name: "Sol" },
+    host_a: { id: "af_heart", name: "Luna", speed: 1.0 },
+    host_b: { id: "af_bella:0.7,bf_emma:0.3", name: "Sol", speed: 1.05 },
   },
   mixed_gender: {
     host_a: { id: "af_heart", name: "Luna" },

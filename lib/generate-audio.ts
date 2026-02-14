@@ -185,50 +185,61 @@ export async function generateAudio(
         ? ttsOpenAI
         : ttsInference;
 
-  console.log(`🔊 Generating ${script.length} audio clips...`);
+  const CONCURRENCY = 6;
+
+  console.log(`🔊 Generating ${script.length} audio clips (concurrency: ${CONCURRENCY})...`);
   console.log(`   TTS provider: ${config.ttsProvider}`);
 
-  const clips: AudioClip[] = [];
+  // Prepare all clip tasks up front
+  const clipResults: (AudioClip | null)[] = new Array(script.length).fill(null);
   let totalChars = 0;
+  let completed = 0;
+
+  // Process clips in parallel batches
+  const pending = new Set<Promise<void>>();
 
   for (let i = 0; i < script.length; i++) {
-    const line = script[i];
-    const voiceId =
-      line.speaker === "HOST_A"
-        ? config.voices.host_a.id
-        : config.voices.host_b?.id || config.voices.host_a.id;
+    const task = (async (idx: number) => {
+      const line = script[idx];
+      const voiceId =
+        line.speaker === "HOST_A"
+          ? config.voices.host_a.id
+          : config.voices.host_b?.id || config.voices.host_a.id;
 
-    const fileName = `clip_${String(i).padStart(3, "0")}_${line.speaker}.mp3`;
-    const filePath = join(clipsDir, fileName);
+      const fileName = `clip_${String(idx).padStart(3, "0")}_${line.speaker}.mp3`;
+      const filePath = join(clipsDir, fileName);
 
-    try {
-      const { audio, durationMs } = await ttsFunc(line.text, voiceId);
-      await writeFile(filePath, audio);
-      totalChars += line.text.length;
+      try {
+        const { audio, durationMs } = await ttsFunc(line.text, voiceId);
+        await writeFile(filePath, audio);
 
-      clips.push({
-        speaker: line.speaker,
-        filePath,
-        durationMs,
-      });
-
-      // Progress indicator
-      const pct = Math.round(((i + 1) / script.length) * 100);
-      process.stdout.write(`\r   Progress: ${pct}% (${i + 1}/${script.length})`);
-
-      // Map to 30-80% range for overall progress
-      const overallPct = 30 + Math.round(((i + 1) / script.length) * 50);
-      onProgress?.(`Generating audio clip ${i + 1}/${script.length}`, overallPct);
-
-      // Small delay to avoid rate limiting
-      if (i < script.length - 1) {
-        await new Promise((r) => setTimeout(r, 200));
+        clipResults[idx] = { speaker: line.speaker, filePath, durationMs };
+        totalChars += line.text.length;
+      } catch (err) {
+        console.error(`\n   ⚠️  Failed on clip ${idx} (${line.speaker}): ${(err as Error).message}`);
       }
-    } catch (err) {
-      console.error(`\n   ⚠️  Failed on clip ${i} (${line.speaker}): ${(err as Error).message}`);
-      // Continue with remaining clips
+
+      completed++;
+      const pct = Math.round((completed / script.length) * 100);
+      process.stdout.write(`\r   Progress: ${pct}% (${completed}/${script.length})`);
+      const overallPct = 30 + Math.round((completed / script.length) * 50);
+      onProgress?.(`Generating audio clip ${completed}/${script.length}`, overallPct);
+    })(i);
+
+    pending.add(task);
+    task.then(() => pending.delete(task));
+
+    // Wait when we hit the concurrency limit
+    if (pending.size >= CONCURRENCY) {
+      await Promise.race(pending);
     }
   }
+
+  // Wait for remaining tasks
+  await Promise.all(pending);
+
+  // Collect successful clips in order
+  const clips: AudioClip[] = clipResults.filter((c): c is AudioClip => c !== null);
 
   console.log(`\n   ✅ Generated ${clips.length} clips (${totalChars} chars)`);
 

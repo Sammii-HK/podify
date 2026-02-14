@@ -8,6 +8,7 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 import { randomUUID } from "crypto";
 import { EpisodeMeta, FeedManifest } from "@/lib/types";
+import { path as ffprobePath } from "ffprobe-static";
 import {
   readManifestFromStore,
   writeManifestToStore,
@@ -85,7 +86,7 @@ export async function addEpisodeToManifest(
 
 async function getAudioDuration(filePath: string): Promise<number> {
   try {
-    const { stdout } = await execFileAsync("ffprobe", [
+    const { stdout } = await execFileAsync(ffprobePath, [
       "-v",
       "quiet",
       "-print_format",

@@ -7,6 +7,11 @@ import { writeFile, readFile } from "fs/promises";
 import { join, resolve } from "path";
 import { execSync } from "child_process";
 import { AudioClip, PodcastConfig } from "@/lib/types";
+import ffmpegPath from "ffmpeg-static";
+import { path as ffprobePath } from "ffprobe-static";
+
+const FFMPEG = ffmpegPath ?? "ffmpeg";
+const FFPROBE = ffprobePath ?? "ffprobe";
 
 export type ProgressCallback = (message: string, percent: number) => void;
 
@@ -29,7 +34,7 @@ async function buildDialogue(
   for (let i = 0; i < clips.length; i++) {
     const normPath = resolve(join(normDir, `c${String(i).padStart(3, "0")}.wav`));
     execSync(
-      `ffmpeg -y -i "${resolve(clips[i].filePath)}" -ar 44100 -ac 2 -c:a pcm_s16le "${normPath}"`,
+      `"${FFMPEG}" -y -i "${resolve(clips[i].filePath)}" -ar 44100 -ac 2 -c:a pcm_s16le "${normPath}"`,
       { stdio: "pipe" }
     );
     parts.push(normPath);
@@ -39,7 +44,7 @@ async function buildDialogue(
       const gapMs = clips[i].speaker !== clips[i + 1].speaker ? 600 : 300;
       const gapPath = resolve(join(normDir, `g${String(i).padStart(3, "0")}.wav`));
       execSync(
-        `ffmpeg -y -f lavfi -i anullsrc=r=24000:cl=mono -t ${gapMs / 1000} -c:a pcm_s16le "${gapPath}"`,
+        `"${FFMPEG}" -y -f lavfi -i anullsrc=r=24000:cl=mono -t ${gapMs / 1000} -c:a pcm_s16le "${gapPath}"`,
         { stdio: "pipe" }
       );
       parts.push(gapPath);
@@ -53,7 +58,7 @@ async function buildDialogue(
 
   // Concatenate all WAV parts into final MP3 (44.1kHz stereo, 192kbps for quality)
   execSync(
-    `ffmpeg -y -f concat -safe 0 -i "${concatPath}" -ar 44100 -ac 2 -c:a libmp3lame -b:a 192k "${outputPath}"`,
+    `"${FFMPEG}" -y -f concat -safe 0 -i "${concatPath}" -ar 44100 -ac 2 -c:a libmp3lame -b:a 192k "${outputPath}"`,
     { stdio: "pipe" }
   );
 }
@@ -68,7 +73,7 @@ function mixWithMusic(
   musicVolume: number = 0.10
 ): void {
   execSync(
-    `ffmpeg -y -i "${dialoguePath}" -stream_loop -1 -i "${musicPath}" \
+    `"${FFMPEG}" -y -i "${dialoguePath}" -stream_loop -1 -i "${musicPath}" \
      -filter_complex "[1:a]volume=${musicVolume}[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=3" \
      -c:a libmp3lame -q:a 2 "${outputPath}"`,
     { stdio: "pipe" }
@@ -97,7 +102,7 @@ function addIntroOutro(
   const tmpConcat = mainPath.replace(".mp3", "_final_concat.txt");
   execSync(`echo '${parts.join("\n")}' > "${tmpConcat}"`);
   execSync(
-    `ffmpeg -y -f concat -safe 0 -i "${tmpConcat}" -c:a libmp3lame -q:a 2 "${outputPath}"`,
+    `"${FFMPEG}" -y -f concat -safe 0 -i "${tmpConcat}" -c:a libmp3lame -q:a 2 "${outputPath}"`,
     { stdio: "pipe" }
   );
 }
@@ -108,7 +113,7 @@ function addIntroOutro(
 function getAudioDuration(filePath: string): number {
   try {
     const result = execSync(
-      `ffprobe -v error -show_entries format=duration -of csv=p=0 "${filePath}"`,
+      `"${FFPROBE}" -v error -show_entries format=duration -of csv=p=0 "${filePath}"`,
       { encoding: "utf-8" }
     ).trim();
     return parseFloat(result) || 0;

@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["dotenv"],
+  serverExternalPackages: ["dotenv", "ffmpeg-static", "ffprobe-static"],
 };
 
 export default nextConfig;

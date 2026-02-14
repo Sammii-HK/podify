@@ -49,58 +49,28 @@ async function ttsDeepInfra(
   if (!apiKey) throw new Error("DEEPINFRA_API_KEY not set");
 
   const body: Record<string, unknown> = {
-    text,
+    model: "hexgrad/Kokoro-82M",
+    input: text,
     voice,
-    output_format: "wav",
+    response_format: "mp3",
   };
   if (speed !== undefined) body.speed = speed;
 
-  const res = await fetch(
-    "https://api.deepinfra.com/v1/inference/hexgrad/Kokoro-82M",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    }
-  );
+  const res = await fetch("https://api.deepinfra.com/v1/audio/speech", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
 
   if (!res.ok) {
     const err = await res.text();
     throw new Error(`DeepInfra TTS error ${res.status}: ${err}`);
   }
 
-  const contentType = res.headers.get("content-type") || "";
-  let audioBuffer: Buffer;
-
-  if (contentType.includes("audio/")) {
-    // Direct binary audio response
-    audioBuffer = Buffer.from(await res.arrayBuffer());
-  } else {
-    // JSON response with audio data
-    const data = await res.json();
-    if (data.audio) {
-      // Strip data URI prefix if present
-      const b64 = typeof data.audio === "string" && data.audio.includes(",")
-        ? data.audio.split(",")[1]
-        : data.audio;
-      audioBuffer = Buffer.from(b64, "base64");
-    } else if (data.output?.audio) {
-      const b64 = typeof data.output.audio === "string" && data.output.audio.includes(",")
-        ? data.output.audio.split(",")[1]
-        : data.output.audio;
-      audioBuffer = Buffer.from(b64, "base64");
-    } else if (data.output?.url) {
-      const audioRes = await fetch(data.output.url);
-      audioBuffer = Buffer.from(await audioRes.arrayBuffer());
-    } else {
-      throw new Error("Unexpected DeepInfra response format");
-    }
-  }
-
-  // Estimate duration: ~1000 chars = 1 minute
+  const audioBuffer = Buffer.from(await res.arrayBuffer());
   const estimatedDurationMs = (text.length / 1000) * 60 * 1000;
 
   return { audio: audioBuffer, durationMs: estimatedDurationMs };

@@ -40,6 +40,9 @@ export default function Home() {
       else if (form.contentSource === "url") body.url = form.url;
       else body.grimoire_path = form.grimoirePath;
 
+      // Use async mode so we get the jobId back immediately
+      body.async = true;
+
       const res = await fetch("/api/podcast/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

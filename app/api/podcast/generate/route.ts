@@ -1,10 +1,11 @@
 import "dotenv/config";
 import { NextResponse } from "next/server";
 import { createJob, updateJob, isAtCapacity } from "@/lib/jobs";
+import { generateEpisode } from "@/lib/pipeline";
 import { fetchGrimoirePage, fetchUrl } from "@/lib/fetch-content";
 import { PodcastConfig, VOICE_PRESETS } from "@/lib/types";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 interface GenerateRequest {
   content?: string;
@@ -19,6 +20,7 @@ interface GenerateRequest {
   llm?: PodcastConfig["llmProvider"];
   includeMusic?: boolean;
   instructions?: string;
+  async?: boolean; // If true, returns jobId immediately (caller must POST /process/:id)
 }
 
 export async function POST(request: Request) {
@@ -83,12 +85,62 @@ export async function POST(request: Request) {
     };
 
     const job = await createJob();
-
-    // Store config in the job so the process route can read it
     await updateJob(job.id, { config });
 
-    console.log(`[podify] Job ${job.id} created, waiting for client to trigger processing`);
-    return NextResponse.json({ jobId: job.id });
+    // Async mode: return jobId immediately, caller triggers POST /process/:id
+    if (body.async) {
+      console.log(`[podify] Job ${job.id} created (async mode)`);
+      return NextResponse.json({ jobId: job.id });
+    }
+
+    // Sync mode (default): run generation inline. The caller's HTTP connection
+    // keeps the function alive for the full maxDuration (300s). Progress updates
+    // are written to blob so concurrent status polling still works.
+    const outputDir = process.env.VERCEL ? "/tmp/.podify-output" : ".podify-output";
+    console.log(`[podify] Starting generation for job ${job.id}`);
+
+    try {
+      await updateJob(job.id, { status: "processing", message: "Starting..." });
+
+      const result = await generateEpisode(config, outputDir, async (event) => {
+        try {
+          await updateJob(job.id, {
+            status: "processing",
+            stage: event.stage,
+            message: event.message,
+            progress: event.percent,
+          });
+        } catch (err) {
+          console.error(`[podify] Failed to update progress for job ${job.id}:`, err);
+        }
+      });
+
+      await updateJob(job.id, {
+        status: "complete",
+        progress: 100,
+        stage: "complete",
+        message: "Episode complete!",
+        result: {
+          audioPath: result.audioPath,
+          transcript: result.transcript,
+          durationSeconds: result.durationSeconds,
+          wordCount: result.wordCount,
+          costUsd: result.costUsd,
+        },
+      });
+
+      return NextResponse.json({ jobId: job.id, status: "complete", result: {
+        transcript: result.transcript,
+        durationSeconds: result.durationSeconds,
+        wordCount: result.wordCount,
+        costUsd: result.costUsd,
+      }});
+    } catch (err) {
+      console.error(`[podify] Generation failed for job ${job.id}:`, err);
+      const message = err instanceof Error ? err.message : String(err);
+      await updateJob(job.id, { status: "error", message, error: message }).catch(() => {});
+      return NextResponse.json({ jobId: job.id, status: "error", error: message }, { status: 500 });
+    }
   } catch (err) {
     return NextResponse.json(
       { error: (err as Error).message },

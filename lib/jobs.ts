@@ -109,7 +109,7 @@ export async function updateJob(
   }
 }
 
-const STALE_MS = 10 * 60 * 1000; // 10 minutes
+const STALE_MS = 5 * 60 * 1000; // 5 minutes (matches maxDuration)
 
 function isActive(job: Job): boolean {
   if (job.status !== "pending" && job.status !== "processing") return false;

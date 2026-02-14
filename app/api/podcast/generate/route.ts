@@ -1,6 +1,5 @@
 import "dotenv/config";
-import { NextResponse } from "next/server";
-import { waitUntil } from "@vercel/functions";
+import { NextResponse, after } from "next/server";
 import { createJob, updateJob, isAtCapacity } from "@/lib/jobs";
 import { generateEpisode } from "@/lib/pipeline";
 import { fetchGrimoirePage, fetchUrl } from "@/lib/fetch-content";
@@ -88,18 +87,24 @@ export async function POST(request: Request) {
 
     // Start generation — waitUntil keeps the function alive after response
     const outputDir = process.env.VERCEL ? "/tmp/.podify-output" : ".podify-output";
-    const generationPromise = generateEpisode(config, outputDir, async (event) => {
-      await updateJob(job.id, {
-        status: "processing",
-        stage: event.stage,
-        message: event.message,
-        progress: event.percent,
-        ...(event.stage === "complete"
-          ? { status: "complete" as const }
-          : {}),
-      });
-    })
-      .then(async (result) => {
+    console.log(`[podify] Starting generation for job ${job.id}`);
+    after(async () => {
+      try {
+        const result = await generateEpisode(config, outputDir, async (event) => {
+          try {
+            await updateJob(job.id, {
+              status: "processing",
+              stage: event.stage,
+              message: event.message,
+              progress: event.percent,
+              ...(event.stage === "complete"
+                ? { status: "complete" as const }
+                : {}),
+            });
+          } catch (err) {
+            console.error(`[podify] Failed to update progress for job ${job.id}:`, err);
+          }
+        });
         await updateJob(job.id, {
           status: "complete",
           progress: 100,
@@ -113,21 +118,19 @@ export async function POST(request: Request) {
             costUsd: result.costUsd,
           },
         });
-      })
-      .catch(async (err) => {
+      } catch (err) {
         console.error(`[podify] Generation failed for job ${job.id}:`, err);
         try {
           await updateJob(job.id, {
             status: "error",
-            message: err.message,
-            error: err.message,
+            message: err instanceof Error ? err.message : String(err),
+            error: err instanceof Error ? err.message : String(err),
           });
         } catch (updateErr) {
           console.error(`[podify] Failed to update job ${job.id} with error status:`, updateErr);
         }
-      });
-
-    waitUntil(generationPromise);
+      }
+    });
 
     return NextResponse.json({ jobId: job.id });
   } catch (err) {

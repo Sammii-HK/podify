@@ -12,7 +12,7 @@ const GRIMOIRE_SHOW: ShowConfig = {
   language: "en",
   author: "Lunary",
   email: "hello@lunary.app",
-  imageUrl: "https://lunary.app/api/og/podcast-cover?v=2",
+  imageUrl: "https://podify-topaz.vercel.app/the-grimoire-cover.png",
   category: "Religion & Spirituality",
   explicit: false,
 };

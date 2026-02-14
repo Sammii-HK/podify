@@ -27,10 +27,11 @@ export async function generateEpisode(
 ): Promise<PodcastResult> {
   const startTime = Date.now();
   const timestamp = new Date().toISOString().slice(0, 10);
-  const slug = config.title
+  const slugBase = config.title
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .slice(0, 50);
+  const slug = `${slugBase}-${randomUUID().slice(0, 6)}`;
 
   const episodeDir = join(outputDir, `${timestamp}_${slug}`);
   const workDir = join(episodeDir, ".work");

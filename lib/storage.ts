@@ -84,7 +84,8 @@ export async function uploadEpisodeAudio(
   slug: string,
   buffer: Buffer
 ): Promise<string> {
-  const blob = await put(`episodes/${slug}.mp3`, buffer, {
+  const date = new Date().toISOString().slice(0, 10);
+  const blob = await put(`episodes/${date}_${slug}.mp3`, buffer, {
     access: "public",
     addRandomSuffix: false,
     contentType: "audio/mpeg",

@@ -2,47 +2,37 @@
 // Feed Manifest — persistent episode registry
 // ============================================================
 
-import { readFile, writeFile, stat, readdir } from "fs/promises";
-import { join, basename } from "path";
+import { readFile, stat, readdir } from "fs/promises";
+import { join } from "path";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { randomUUID } from "crypto";
-import { EpisodeMeta, FeedManifest, ShowConfig } from "@/lib/types";
+import { EpisodeMeta, FeedManifest } from "@/lib/types";
+import {
+  readManifestFromStore,
+  writeManifestToStore,
+  isUsingBlob,
+  uploadEpisodeAudio,
+  deleteEpisodeAudio,
+} from "@/lib/storage";
 
 const execFileAsync = promisify(execFile);
 
-const DEFAULT_SHOW: ShowConfig = {
-  title: "Podify Podcast",
-  description: "AI-generated podcast episodes",
-  link: "https://example.com",
-  language: "en",
-  author: "Podify",
-  email: "podcast@example.com",
-  imageUrl: "",
-  category: "Education",
-  explicit: false,
-};
+const MAX_EPISODES = parseInt(process.env.MAX_EPISODES || "60", 10);
 
 // ============================================================
 // Read / write manifest
 // ============================================================
 
 export async function readManifest(outputDir: string): Promise<FeedManifest> {
-  const feedPath = join(outputDir, "feed.json");
-  try {
-    const raw = await readFile(feedPath, "utf-8");
-    return JSON.parse(raw) as FeedManifest;
-  } catch {
-    return { show: { ...DEFAULT_SHOW }, episodes: [] };
-  }
+  return readManifestFromStore(outputDir);
 }
 
 async function writeManifest(
   outputDir: string,
   manifest: FeedManifest
 ): Promise<void> {
-  const feedPath = join(outputDir, "feed.json");
-  await writeFile(feedPath, JSON.stringify(manifest, null, 2));
+  return writeManifestToStore(outputDir, manifest);
 }
 
 // ============================================================
@@ -68,6 +58,24 @@ export async function addEpisodeToManifest(
 
   // Prepend (newest first)
   manifest.episodes.unshift({ ...episode, slug: finalSlug });
+
+  // Auto-prune: keep only MAX_EPISODES
+  if (manifest.episodes.length > MAX_EPISODES) {
+    const pruned = manifest.episodes.splice(MAX_EPISODES);
+    if (isUsingBlob()) {
+      for (const old of pruned) {
+        if (old.blobUrl) {
+          try {
+            await deleteEpisodeAudio(old.blobUrl);
+            console.log(`   Pruned from blob: ${old.slug}`);
+          } catch {
+            // Best-effort deletion
+          }
+        }
+      }
+    }
+  }
+
   await writeManifest(outputDir, manifest);
 }
 
@@ -155,6 +163,17 @@ export async function rebuildFeedManifest(outputDir: string): Promise<void> {
       wordCount,
       costUsd: 0,
     };
+
+    // Upload to blob if configured
+    if (isUsingBlob()) {
+      try {
+        const mp3Buffer = await readFile(mp3Path);
+        episode.blobUrl = await uploadEpisodeAudio(slug, mp3Buffer);
+        console.log(`   Uploaded to blob: ${slug}`);
+      } catch (err) {
+        console.warn(`   Failed to upload ${slug} to blob: ${(err as Error).message}`);
+      }
+    }
 
     manifest.episodes.unshift(episode);
     existingSlugs.add(slug);

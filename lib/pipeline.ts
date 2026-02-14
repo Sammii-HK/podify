@@ -2,13 +2,14 @@
 // Shared Pipeline — used by both CLI and API
 // ============================================================
 
-import { mkdir, writeFile, stat, rm } from "fs/promises";
+import { mkdir, writeFile, readFile, stat, rm } from "fs/promises";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { generateScript, generateEpisodeDescription } from "@/lib/generate-script";
 import { generateAudio } from "@/lib/generate-audio";
 import { assemblePodcast } from "@/lib/assemble-podcast";
 import { addEpisodeToManifest } from "@/lib/feed";
+import { isUsingBlob, uploadEpisodeAudio } from "@/lib/storage";
 import { PodcastConfig, PodcastResult, EpisodeMeta } from "@/lib/types";
 
 export interface ProgressEvent {
@@ -157,6 +158,17 @@ export async function generateEpisode(
       wordCount,
       costUsd: totalCost,
     };
+
+    // Upload MP3 to Vercel Blob if configured
+    if (isUsingBlob()) {
+      try {
+        const mp3Buffer = await readFile(outputPath);
+        episode.blobUrl = await uploadEpisodeAudio(slug, mp3Buffer);
+        console.log(`   Uploaded to Vercel Blob`);
+      } catch (err) {
+        console.warn(`   Failed to upload to blob: ${(err as Error).message}`);
+      }
+    }
 
     await addEpisodeToManifest(outputDir, episode);
     console.log(`   📡 Added to feed manifest`);

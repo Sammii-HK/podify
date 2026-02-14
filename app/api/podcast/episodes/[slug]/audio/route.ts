@@ -17,6 +17,11 @@ export async function GET(
     return NextResponse.json({ error: "Episode not found" }, { status: 404 });
   }
 
+  // Redirect to Vercel Blob if available (zero bandwidth on serverless)
+  if (episode.blobUrl) {
+    return NextResponse.redirect(episode.blobUrl, 302);
+  }
+
   const audioPath = join(OUTPUT_DIR, episode.dirName, episode.audioFileName);
 
   try {

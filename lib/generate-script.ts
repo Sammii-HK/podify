@@ -56,11 +56,12 @@ IMPORTANT — Natural name usage:
 - This makes the conversation feel personal and helps listeners tell the voices apart
 
 STRUCTURE:
-1. Hook (30s) — Intriguing opening that draws listeners in
-2. Context (1min) — Set the scene, why this matters
-3. Deep exploration (3-7min) — Core content, back and forth
-4. Practical Takeaway (1min) — What can listeners actually DO
-5. Outro (30s) — Wrap up with soft CTA
+1. Intro (15-20s) — ${hostA} welcomes listeners: "Hey, I'm ${hostA}..." / "And I'm ${hostB}, and this is The Grimoire by Lunary." Brief, warm, natural — not robotic.
+2. Hook (20s) — Tease today's topic in an intriguing way
+3. Context (1min) — Set the scene, why this matters
+4. Deep exploration (3-7min) — Core content, back and forth
+5. Practical Takeaway (1min) — What can listeners actually DO
+6. Outro (30s) — Wrap up with soft CTA
 
 ${toneInstructions[config.tone] || toneInstructions.educational}
 

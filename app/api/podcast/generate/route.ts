@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { NextResponse } from "next/server";
+import { waitUntil } from "@vercel/functions";
 import { createJob, updateJob, isAtCapacity } from "@/lib/jobs";
 import { generateEpisode } from "@/lib/pipeline";
 import { fetchGrimoirePage, fetchUrl } from "@/lib/fetch-content";
@@ -85,10 +86,10 @@ export async function POST(request: Request) {
 
     const job = await createJob();
 
-    // Fire-and-forget: start generation without awaiting
+    // Start generation — waitUntil keeps the function alive after response
     const outputDir = process.env.VERCEL ? "/tmp/.podify-output" : ".podify-output";
-    generateEpisode(config, outputDir, (event) => {
-      updateJob(job.id, {
+    const generationPromise = generateEpisode(config, outputDir, async (event) => {
+      await updateJob(job.id, {
         status: "processing",
         stage: event.stage,
         message: event.message,
@@ -98,8 +99,8 @@ export async function POST(request: Request) {
           : {}),
       });
     })
-      .then((result) => {
-        updateJob(job.id, {
+      .then(async (result) => {
+        await updateJob(job.id, {
           status: "complete",
           progress: 100,
           stage: "complete",
@@ -113,13 +114,15 @@ export async function POST(request: Request) {
           },
         });
       })
-      .catch((err) => {
-        updateJob(job.id, {
+      .catch(async (err) => {
+        await updateJob(job.id, {
           status: "error",
           message: err.message,
           error: err.message,
         });
       });
+
+    waitUntil(generationPromise);
 
     return NextResponse.json({ jobId: job.id });
   } catch (err) {

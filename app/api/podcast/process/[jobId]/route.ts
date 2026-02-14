@@ -55,6 +55,8 @@ export async function POST(
       message: "Episode complete!",
       result: {
         audioPath: result.audioPath,
+        slug: result.slug,
+        blobUrl: result.blobUrl,
         transcript: result.transcript,
         durationSeconds: result.durationSeconds,
         wordCount: result.wordCount,

@@ -15,6 +15,8 @@ export interface Job {
   config?: PodcastConfig;
   result?: {
     audioPath: string;
+    slug: string;
+    blobUrl?: string;
     transcript: ScriptLine[];
     durationSeconds: number;
     wordCount: number;

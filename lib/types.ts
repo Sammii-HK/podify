@@ -60,6 +60,12 @@ export interface PodcastResult {
   /** Path to final MP3 */
   audioPath: string;
 
+  /** Episode slug (unique identifier) */
+  slug: string;
+
+  /** Vercel Blob URL for the MP3, if uploaded */
+  blobUrl?: string;
+
   /** Full transcript */
   transcript: ScriptLine[];
 

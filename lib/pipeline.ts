@@ -125,24 +125,24 @@ export async function generateEpisode(
   console.log(`${"=".repeat(60)}\n`);
 
   // Register episode in feed manifest
+  let episodeBlobUrl: string | undefined;
+  let description = "";
   try {
-    let description = "";
-    try {
-      description = await generateEpisodeDescription(
-        config.title,
-        script,
-        config.llmProvider
-      );
-    } catch (err) {
-      console.warn(`   ⚠️  Failed to generate description: ${(err as Error).message}`);
-      // Fallback: use beginning of transcript
-      description = script
-        .map((l) => l.text)
-        .join(" ")
-        .slice(0, 200);
-      if (description.length === 200) description += "...";
-    }
+    description = await generateEpisodeDescription(
+      config.title,
+      script,
+      config.llmProvider
+    );
+  } catch (err) {
+    console.warn(`   ⚠️  Failed to generate description: ${(err as Error).message}`);
+    description = script
+      .map((l) => l.text)
+      .join(" ")
+      .slice(0, 200);
+    if (description.length === 200) description += "...";
+  }
 
+  try {
     const mp3Stat = await stat(outputPath);
     const dirName = `${timestamp}_${slug}`;
 
@@ -166,16 +166,18 @@ export async function generateEpisode(
       try {
         const mp3Buffer = await readFile(outputPath);
         episode.blobUrl = await uploadEpisodeAudio(slug, mp3Buffer);
-        console.log(`   Uploaded to Vercel Blob`);
+        episodeBlobUrl = episode.blobUrl;
+        console.log(`   Uploaded to Vercel Blob: ${episode.blobUrl}`);
       } catch (err) {
-        console.warn(`   Failed to upload to blob: ${(err as Error).message}`);
+        console.error(`   ❌ Blob upload failed: ${(err as Error).message}`);
       }
     }
 
     await addEpisodeToManifest(outputDir, episode);
     console.log(`   📡 Added to feed manifest`);
   } catch (err) {
-    console.warn(`   ⚠️  Failed to update feed manifest: ${(err as Error).message}`);
+    console.error(`   ❌ Failed to register episode: ${(err as Error).message}`);
+    console.error(err);
   }
 
   // Clean up .work/ directory (~45MB per episode)
@@ -190,6 +192,8 @@ export async function generateEpisode(
 
   return {
     audioPath: outputPath,
+    slug,
+    blobUrl: episodeBlobUrl,
     transcript: script,
     durationSeconds,
     wordCount,

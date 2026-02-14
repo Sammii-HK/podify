@@ -122,6 +122,8 @@ export async function POST(request: Request) {
         message: "Episode complete!",
         result: {
           audioPath: result.audioPath,
+          slug: result.slug,
+          blobUrl: result.blobUrl,
           transcript: result.transcript,
           durationSeconds: result.durationSeconds,
           wordCount: result.wordCount,
@@ -130,6 +132,9 @@ export async function POST(request: Request) {
       });
 
       return NextResponse.json({ jobId: job.id, status: "complete", result: {
+        slug: result.slug,
+        blobUrl: result.blobUrl,
+        audioUrl: result.blobUrl || `/api/podcast/episodes/${result.slug}/audio`,
         transcript: result.transcript,
         durationSeconds: result.durationSeconds,
         wordCount: result.wordCount,

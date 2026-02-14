@@ -8,10 +8,8 @@ import { join, resolve } from "path";
 import { execSync } from "child_process";
 import { AudioClip, PodcastConfig } from "@/lib/types";
 import ffmpegPath from "ffmpeg-static";
-import { path as ffprobePath } from "ffprobe-static";
 
 const FFMPEG = ffmpegPath ?? "ffmpeg";
-const FFPROBE = ffprobePath ?? "ffprobe";
 
 export type ProgressCallback = (message: string, percent: number) => void;
 
@@ -112,11 +110,13 @@ function addIntroOutro(
  */
 function getAudioDuration(filePath: string): number {
   try {
-    const result = execSync(
-      `"${FFPROBE}" -v error -show_entries format=duration -of csv=p=0 "${filePath}"`,
+    const stderr = execSync(
+      `"${FFMPEG}" -i "${filePath}" -f null - 2>&1`,
       { encoding: "utf-8" }
-    ).trim();
-    return parseFloat(result) || 0;
+    );
+    const match = stderr.match(/Duration:\s*(\d+):(\d+):(\d+\.\d+)/);
+    if (!match) return 0;
+    return parseInt(match[1]) * 3600 + parseInt(match[2]) * 60 + parseFloat(match[3]);
   } catch {
     return 0;
   }

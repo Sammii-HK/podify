@@ -123,6 +123,7 @@ export interface EpisodeMeta {
   audioFileName: string;  // "kitchen-witchcraft-101.mp3"
   wordCount: number;
   costUsd: number;
+  blobUrl?: string;       // Vercel Blob URL for the MP3
 }
 
 export interface ShowConfig {

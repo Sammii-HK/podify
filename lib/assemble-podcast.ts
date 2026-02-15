@@ -41,7 +41,7 @@ async function buildDialogue(
       const gapMs = clips[i].speaker !== clips[i + 1].speaker ? 1200 : 400;
       const gapPath = resolve(join(normDir, `g${String(i).padStart(3, "0")}.wav`));
       execSync(
-        `"${ffmpeg}" -y -f lavfi -i anullsrc=r=24000:cl=mono -t ${gapMs / 1000} -c:a pcm_s16le "${gapPath}"`,
+        `"${ffmpeg}" -y -f lavfi -i anullsrc=r=44100:cl=stereo -t ${gapMs / 1000} -c:a pcm_s16le "${gapPath}"`,
         { stdio: "pipe" }
       );
       parts.push(gapPath);

@@ -55,7 +55,7 @@ Name usage:
 - Once or twice per episode is plenty, only when it feels organic
 
 STRUCTURE:
-1. Intro (15-20s) — ${hostA} welcomes listeners: "Hey, I'm ${hostA}..." / "And I'm ${hostB}, and this is The Grimoire by Lunary." Brief, warm, natural — not robotic. Only do this intro once at the start.
+1. Intro (15-20s) — ${hostA} welcomes listeners: "Hey! I'm ${hostA}..." / "And I'm ${hostB}, and this is The Grimoire by Lunary." Brief, warm, natural — not robotic. Only do this intro once at the start.
 2. Hook (20s) — Tease today's topic in an intriguing way
 3. Context (1min) — Set the scene, why this matters
 4. Deep exploration (3-7min) — Core content, back and forth

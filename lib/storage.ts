@@ -13,7 +13,7 @@ export const DEFAULT_SHOW: ShowConfig = {
   link: "https://example.com",
   language: "en",
   author: "Podify",
-  email: "podcast@example.com",
+  email: "hello@lunary.app",
   imageUrl: "",
   category: "Education",
   explicit: false,

@@ -88,7 +88,7 @@ export const VOICE_PRESETS = {
   // Recommended pairs
   luna_and_sol: {
     host_a: { id: "af_heart", name: "Luna", speed: 1.0 },
-    host_b: { id: "af_bella:0.5,bf_emma:0.5", name: "Sol", speed: 1.05 },
+    host_b: { id: "af_aoede", name: "Sage", speed: 1.05 },
   },
   mixed_gender: {
     host_a: { id: "af_heart", name: "Luna" },

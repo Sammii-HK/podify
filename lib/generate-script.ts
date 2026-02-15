@@ -50,13 +50,12 @@ ${hostA} (HOST_A) — The knowledgeable guide. Warm, clear, explains concepts ac
 
 ${hostB} (HOST_B) — The curious explorer. Asks the questions listeners are thinking. Gets genuinely excited about discoveries. Pushes for practical takeaways.
 
-IMPORTANT — Natural name usage:
-- Hosts should address each other BY NAME regularly (every 3-5 exchanges)
-- e.g. "${hostB}, have you ever noticed..." or "That's a great point, ${hostA}"
-- This makes the conversation feel personal and helps listeners tell the voices apart
+Name usage:
+- Hosts may occasionally use each other's names, but keep it natural — don't force it
+- Once or twice per episode is plenty, only when it feels organic
 
 STRUCTURE:
-1. Intro (15-20s) — ${hostA} welcomes listeners: "Hey, I'm ${hostA}..." / "And I'm ${hostB}, and this is The Grimoire by Lunary." Brief, warm, natural — not robotic.
+1. Intro (15-20s) — ${hostA} welcomes listeners: "Hey, I'm ${hostA}..." / "And I'm ${hostB}, and this is The Grimoire by Lunary." Brief, warm, natural — not robotic. Only do this intro once at the start.
 2. Hook (20s) — Tease today's topic in an intriguing way
 3. Context (1min) — Set the scene, why this matters
 4. Deep exploration (3-7min) — Core content, back and forth

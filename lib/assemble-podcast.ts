@@ -38,7 +38,7 @@ async function buildDialogue(
 
     // Add silence between clips
     if (i < clips.length - 1) {
-      const gapMs = clips[i].speaker !== clips[i + 1].speaker ? 1200 : 400;
+      const gapMs = clips[i].speaker !== clips[i + 1].speaker ? 800 : 300;
       const gapPath = resolve(join(normDir, `g${String(i).padStart(3, "0")}.wav`));
       execSync(
         `"${ffmpeg}" -y -f lavfi -i anullsrc=r=44100:cl=stereo -t ${gapMs / 1000} -c:a pcm_s16le "${gapPath}"`,

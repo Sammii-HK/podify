@@ -29,6 +29,10 @@ function formatDuration(seconds: number): string {
 }
 
 function buildChannelXml(show: ShowConfig, feedUrl: string): string {
+  const categoryXml = show.subcategory
+    ? `    <itunes:category text="${escapeXml(show.category)}"><itunes:category text="${escapeXml(show.subcategory)}" /></itunes:category>`
+    : `    <itunes:category text="${escapeXml(show.category)}" />`;
+
   return `    <title>${escapeXml(show.title)}</title>
     <description>${escapeXml(show.description)}</description>
     <link>${escapeXml(show.link)}</link>
@@ -37,18 +41,20 @@ function buildChannelXml(show: ShowConfig, feedUrl: string): string {
     <itunes:owner>
       <itunes:name>${escapeXml(show.author)}</itunes:name>
       <itunes:email>${escapeXml(show.email)}</itunes:email>
-    </itunes:owner>${show.imageUrl ? `\n    <itunes:image href="${escapeXml(show.imageUrl)}" />` : ""}
-    <itunes:category text="${escapeXml(show.category)}">${show.subcategory ? `\n      <itunes:category text="${escapeXml(show.subcategory)}" />` : ""}
-    </itunes:category>
+    </itunes:owner>
+    <itunes:image href="${escapeXml(show.imageUrl)}" />
     <itunes:explicit>${show.explicit ? "yes" : "no"}</itunes:explicit>
+${categoryXml}
     <atom:link href="${escapeXml(feedUrl)}" rel="self" type="application/rss+xml" />`;
 }
 
 function buildItemXml(episode: EpisodeMeta, baseUrl: string): string {
-  const audioUrl = `${baseUrl}/api/podcast/episodes/${encodeURIComponent(episode.slug)}/audio`;
+  const audioUrl = `${baseUrl}/api/podcast/episodes/${encodeURIComponent(episode.slug)}/audio.mp3`;
+  const episodeLink = `${baseUrl}/feed#${encodeURIComponent(episode.slug)}`;
   return `    <item>
       <title>${escapeXml(episode.title)}</title>
       <description>${escapeXml(episode.description)}</description>
+      <link>${escapeXml(episodeLink)}</link>
       <pubDate>${toRfc2822(episode.pubDate)}</pubDate>
       <enclosure url="${escapeXml(audioUrl)}" length="${episode.fileSizeBytes}" type="audio/mpeg" />
       <guid isPermaLink="false">${escapeXml(episode.guid)}</guid>

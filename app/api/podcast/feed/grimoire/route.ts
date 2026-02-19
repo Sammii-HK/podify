@@ -44,10 +44,12 @@ function formatDuration(seconds: number): string {
 }
 
 function buildItemXml(episode: EpisodeMeta, baseUrl: string): string {
-  const audioUrl = `${baseUrl}/api/podcast/episodes/${encodeURIComponent(episode.slug)}/audio`;
+  const audioUrl = `${baseUrl}/api/podcast/episodes/${encodeURIComponent(episode.slug)}/audio.mp3`;
+  const episodeLink = `${baseUrl}/feed#${encodeURIComponent(episode.slug)}`;
   return `    <item>
       <title>${escapeXml(episode.title)}</title>
       <description>${escapeXml(episode.description)}</description>
+      <link>${escapeXml(episodeLink)}</link>
       <pubDate>${toRfc2822(episode.pubDate)}</pubDate>
       <enclosure url="${escapeXml(audioUrl)}" length="${episode.fileSizeBytes}" type="audio/mpeg" />
       <guid isPermaLink="false">${escapeXml(episode.guid)}</guid>
@@ -83,11 +85,10 @@ export async function GET() {
     <itunes:owner>
       <itunes:name>${escapeXml(show.author)}</itunes:name>
       <itunes:email>${escapeXml(show.email)}</itunes:email>
-    </itunes:owner>${show.imageUrl ? `\n    <itunes:image href="${escapeXml(show.imageUrl)}" />` : ""}
-    <itunes:category text="${escapeXml(show.category)}">
-      <itunes:category text="${escapeXml(SUBCATEGORY)}" />
-    </itunes:category>
+    </itunes:owner>
+    <itunes:image href="${escapeXml(show.imageUrl)}" />
     <itunes:explicit>${show.explicit ? "yes" : "no"}</itunes:explicit>
+    <itunes:category text="${escapeXml(show.category)}"><itunes:category text="${escapeXml(SUBCATEGORY)}" /></itunes:category>
     <atom:link href="${escapeXml(feedUrl)}" rel="self" type="application/rss+xml" />
 ${items}
   </channel>

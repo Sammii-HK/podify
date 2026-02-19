@@ -14,7 +14,7 @@ export const DEFAULT_SHOW: ShowConfig = {
   language: "en",
   author: "Podify",
   email: "hello@lunary.app",
-  imageUrl: "",
+  imageUrl: "https://podify-topaz.vercel.app/the-grimoire-cover.png",
   category: "Education",
   explicit: false,
 };

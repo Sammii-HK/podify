@@ -9,7 +9,7 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ slug: string }> }
 ) {
-  const { slug } = await params;
+  const slug = (await params).slug.replace(/\.mp3$/, "");
   const manifest = await readManifest(OUTPUT_DIR);
 
   const episode = manifest.episodes.find((e) => e.slug === slug);

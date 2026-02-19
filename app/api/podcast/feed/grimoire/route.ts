@@ -44,7 +44,7 @@ function formatDuration(seconds: number): string {
 }
 
 function buildItemXml(episode: EpisodeMeta, baseUrl: string): string {
-  const audioUrl = `${baseUrl}/api/podcast/episodes/${encodeURIComponent(episode.slug)}/audio.mp3`;
+  const audioUrl = `${baseUrl}/api/podcast/episodes/${encodeURIComponent(episode.slug)}/audio`;
   const episodeLink = `${baseUrl}/feed#${encodeURIComponent(episode.slug)}`;
   return `    <item>
       <title>${escapeXml(episode.title)}</title>

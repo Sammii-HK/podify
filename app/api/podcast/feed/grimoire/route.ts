@@ -87,6 +87,12 @@ export async function GET() {
       <itunes:email>${escapeXml(show.email)}</itunes:email>
     </itunes:owner>
     <itunes:image href="${escapeXml(show.imageUrl)}" />
+    <image>
+      <url>${escapeXml(show.imageUrl)}</url>
+      <title>${escapeXml(show.title)}</title>
+      <link>${escapeXml(show.link)}</link>
+    </image>
+    <managingEditor>${escapeXml(show.email)} (${escapeXml(show.author)})</managingEditor>
     <itunes:explicit>${show.explicit ? "yes" : "no"}</itunes:explicit>
     <itunes:category text="${escapeXml(show.category)}"><itunes:category text="${escapeXml(SUBCATEGORY)}" /></itunes:category>
     <atom:link href="${escapeXml(feedUrl)}" rel="self" type="application/rss+xml" />

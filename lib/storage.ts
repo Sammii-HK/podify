@@ -42,7 +42,9 @@ export async function readManifestFromStore(
         return { show: { ...DEFAULT_SHOW }, episodes: [] };
       }
       const res = await fetch(feedBlob.url);
-      return (await res.json()) as FeedManifest;
+      const data = (await res.json()) as FeedManifest;
+      data.show = { ...DEFAULT_SHOW, ...data.show };
+      return data;
     } catch {
       return { show: { ...DEFAULT_SHOW }, episodes: [] };
     }
@@ -52,7 +54,9 @@ export async function readManifestFromStore(
   const feedPath = join(outputDir, "feed.json");
   try {
     const raw = await readFile(feedPath, "utf-8");
-    return JSON.parse(raw) as FeedManifest;
+    const data = JSON.parse(raw) as FeedManifest;
+    data.show = { ...DEFAULT_SHOW, ...data.show };
+    return data;
   } catch {
     return { show: { ...DEFAULT_SHOW }, episodes: [] };
   }

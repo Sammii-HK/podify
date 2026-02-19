@@ -18,9 +18,10 @@ function toRfc2822(isoDate: string): string {
 }
 
 function formatDuration(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.round(seconds % 60);
+  const total = Math.round(seconds);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
   if (h > 0) {
     return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   }
@@ -37,7 +38,8 @@ function buildChannelXml(show: ShowConfig, feedUrl: string): string {
       <itunes:name>${escapeXml(show.author)}</itunes:name>
       <itunes:email>${escapeXml(show.email)}</itunes:email>
     </itunes:owner>${show.imageUrl ? `\n    <itunes:image href="${escapeXml(show.imageUrl)}" />` : ""}
-    <itunes:category text="${escapeXml(show.category)}" />
+    <itunes:category text="${escapeXml(show.category)}">${show.subcategory ? `\n      <itunes:category text="${escapeXml(show.subcategory)}" />` : ""}
+    </itunes:category>
     <itunes:explicit>${show.explicit ? "yes" : "no"}</itunes:explicit>
     <atom:link href="${escapeXml(feedUrl)}" rel="self" type="application/rss+xml" />`;
 }

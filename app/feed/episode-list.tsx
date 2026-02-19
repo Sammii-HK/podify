@@ -4,8 +4,9 @@ import { useState } from "react";
 import type { EpisodeMeta } from "@/lib/types";
 
 function formatDuration(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = Math.round(seconds % 60);
+  const total = Math.round(seconds);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
   return `${m}m ${s}s`;
 }
 

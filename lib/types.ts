@@ -146,6 +146,7 @@ export interface ShowConfig {
   email: string;
   imageUrl: string;
   category: string;
+  subcategory?: string;
   explicit: boolean;
 }
 

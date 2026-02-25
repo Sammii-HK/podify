@@ -82,8 +82,8 @@ export async function GET() {
   xmlns:itunes="http://www.itunes.apple.com/dtds/podcast-1.0.dtd"
   xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>${cdata(show.title)}</title>
-    <description>${cdata(show.description)}</description>
+    <title>${escapeXml(show.title)}</title>
+    <description>${escapeXml(show.description)}</description>
     <link>${escapeXml(show.link)}</link>
     <language>${escapeXml(show.language)}</language>
     <itunes:author>${escapeXml(show.author)}</itunes:author>
@@ -98,8 +98,6 @@ export async function GET() {
       <link>${escapeXml(show.link)}</link>
     </image>
     <managingEditor>${escapeXml(show.email)} (${escapeXml(show.author)})</managingEditor>
-    <author>${escapeXml(show.author)}</author>
-    <email>${escapeXml(show.email)}</email>
     <itunes:explicit>${show.explicit ? "yes" : "no"}</itunes:explicit>
     <itunes:category text="${escapeXml(show.category)}"><itunes:category text="${escapeXml(SUBCATEGORY)}" /></itunes:category>
     <atom:link href="${escapeXml(feedUrl)}" rel="self" type="application/rss+xml" />

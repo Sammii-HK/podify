@@ -5,6 +5,7 @@ const PUBLIC_PATHS = [
   "/login",
   "/api/auth/",
   "/api/podcast/feed",      // includes /feed/grimoire
+  "/rss/",                  // public RSS aliases
   "/_next/",
   "/favicon.ico",
 ];

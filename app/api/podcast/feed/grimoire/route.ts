@@ -7,7 +7,7 @@ const OUTPUT_DIR = ".podify-output";
 const GRIMOIRE_SHOW: ShowConfig = {
   title: "The Grimoire",
   description:
-    "Astrology, witchcraft, tarot, and cosmic wisdom in bite-sized episodes. Two hosts explore everything from birth charts to crystal meanings, spells to planetary transits. Learn the real thing — powered by Lunary.",
+    "Astrology, witchcraft, tarot, and cosmic wisdom in bite-sized episodes. Two hosts explore everything from birth charts to crystal meanings, spells to planetary transits. Learn the real thing, powered by Lunary.",
   link: "https://lunary.app",
   language: "en",
   author: "Lunary",
@@ -26,6 +26,11 @@ function escapeXml(str: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&apos;");
+}
+
+function cdata(str: string): string {
+  // CDATA sections cannot contain "]]>" — escape it if present
+  return `<![CDATA[${str.replace(/]]>/g, "]]]]><![CDATA[>")}]]>`;
 }
 
 function toRfc2822(isoDate: string): string {
@@ -47,8 +52,8 @@ function buildItemXml(episode: EpisodeMeta, baseUrl: string): string {
   const audioUrl = `${baseUrl}/api/podcast/episodes/${encodeURIComponent(episode.slug)}/audio`;
   const episodeLink = `${baseUrl}/feed#${encodeURIComponent(episode.slug)}`;
   return `    <item>
-      <title>${escapeXml(episode.title)}</title>
-      <description>${escapeXml(episode.description)}</description>
+      <title>${cdata(episode.title)}</title>
+      <description>${cdata(episode.description)}</description>
       <link>${escapeXml(episodeLink)}</link>
       <pubDate>${toRfc2822(episode.pubDate)}</pubDate>
       <enclosure url="${escapeXml(audioUrl)}" length="${episode.fileSizeBytes}" type="audio/mpeg" />
@@ -77,8 +82,8 @@ export async function GET() {
   xmlns:itunes="http://www.itunes.apple.com/dtds/podcast-1.0.dtd"
   xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>${escapeXml(show.title)}</title>
-    <description>${escapeXml(show.description)}</description>
+    <title>${cdata(show.title)}</title>
+    <description>${cdata(show.description)}</description>
     <link>${escapeXml(show.link)}</link>
     <language>${escapeXml(show.language)}</language>
     <itunes:author>${escapeXml(show.author)}</itunes:author>

@@ -11,7 +11,7 @@ const GRIMOIRE_SHOW: ShowConfig = {
   link: "https://lunary.app",
   language: "en",
   author: "Lunary",
-  email: "hello@lunary.app",
+  email: "lunary.app@gmail.com",
   imageUrl: "https://podify-topaz.vercel.app/the-grimoire-cover.png",
   category: "Religion & Spirituality",
   explicit: false,

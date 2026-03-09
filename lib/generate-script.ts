@@ -16,6 +16,9 @@ function getSystemPrompt(config: PodcastConfig): string {
   const hostA = config.voices.host_a.name;
   const hostB = config.voices.host_b?.name || "Guest";
 
+  // CTA rule only for Lunary content, not for study sessions
+  const ctaRule = config.format !== 'deep_review' ? '\n- End with a soft CTA: mention Lunary\'s grimoire or birth chart tool naturally' : '';
+
   const baseRules = `
 RULES:
 - Write for SPOKEN word — use contractions, casual phrasing, natural rhythm
@@ -24,8 +27,7 @@ RULES:
 - Each speaker turn: 1-4 sentences MAX. Keep it punchy.
 - Include [laughs], [pause] stage directions VERY sparingly (max 2-3 per episode)
 - Target: ${wordTarget} words total
-- Source content is your ONLY reference — don't make up facts
-- End with a soft CTA: mention Lunary's grimoire or birth chart tool naturally
+- Source content is your ONLY reference — don't make up facts${ctaRule}
 
 OUTPUT: Return ONLY a JSON array, no markdown, no explanation:
 [{"speaker":"HOST_A","text":"..."},{"speaker":"HOST_B","text":"..."},...]

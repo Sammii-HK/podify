@@ -10,10 +10,10 @@ export interface PodcastConfig {
   title: string;
 
   /** Podcast format */
-  format: "conversation" | "interview" | "solo_narration" | "study_notes";
+  format: "conversation" | "interview" | "solo_narration" | "study_notes" | "deep_review";
 
   /** Target duration */
-  duration: "5min" | "10min" | "15min";
+  duration: "5min" | "10min" | "15min" | "20min" | "30min";
 
   /** Tone of the episode */
   tone: "educational" | "casual" | "deep_dive" | "mystical";
@@ -25,10 +25,10 @@ export interface PodcastConfig {
   };
 
   /** TTS provider */
-  ttsProvider: "deepinfra" | "inference" | "openai";
+  ttsProvider: "deepinfra" | "orpheus" | "inference" | "openai";
 
   /** LLM provider for script generation */
-  llmProvider: "openrouter" | "inference";
+  llmProvider: "openrouter" | "inference" | "brandapi";
 
   /** Include ambient background music */
   includeMusic: boolean;
@@ -98,6 +98,15 @@ export const VOICE_PRESETS = {
     host_a: { id: "bf_emma", name: "Luna" },
     host_b: { id: "bm_george", name: "Sol" },
   },
+  // Orpheus pairs (expressive)
+  orpheus_jess_zac: {
+    host_a: { id: "jess", name: "Jess" },
+    host_b: { id: "zac", name: "Zac" },
+  },
+  orpheus_tara_leo: {
+    host_a: { id: "tara", name: "Tara" },
+    host_b: { id: "leo", name: "Leo" },
+  },
   // Solo narration
   solo_warm: {
     host_a: { id: "af_heart", name: "Narrator" },
@@ -115,6 +124,8 @@ export const DURATION_WORDS: Record<string, number> = {
   "5min": 750,
   "10min": 1500,
   "15min": 2250,
+  "20min": 3000,
+  "30min": 4500,
 };
 
 // ============================================================

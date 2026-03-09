@@ -19,6 +19,7 @@ export type ProgressCallback = (message: string, percent: number) => void;
 async function buildDialogue(
   ffmpeg: string,
   clips: AudioClip[],
+  config: PodcastConfig,
   workDir: string,
   outputPath: string
 ): Promise<void> {
@@ -36,9 +37,12 @@ async function buildDialogue(
     );
     parts.push(normPath);
 
-    // Add silence between clips
-    if (i < clips.length - 1) {
-      const gapMs = clips[i].speaker !== clips[i + 1].speaker ? 800 : 300;
+    // Add silence between clips (only for providers that need it — Orpheus handles pacing naturally)
+    if (i < clips.length - 1 && config.ttsProvider !== "orpheus") {
+      const switchingSpeaker = clips[i].speaker !== clips[i + 1].speaker;
+      const baseMs = switchingSpeaker ? 200 : 80;
+      const rangeMs = switchingSpeaker ? 300 : 170;
+      const gapMs = baseMs + Math.floor(Math.random() * rangeMs);
       const gapPath = resolve(join(normDir, `g${String(i).padStart(3, "0")}.wav`));
       execSync(
         `"${ffmpeg}" -y -f lavfi -i anullsrc=r=44100:cl=stereo -t ${gapMs / 1000} -c:a pcm_s16le "${gapPath}"`,
@@ -140,7 +144,7 @@ export async function assemblePodcast(
 
   // Step 1: Normalize clips and concatenate with pauses
   const dialoguePath = join(workDir, "dialogue.mp3");
-  await buildDialogue(ffmpeg, clips, workDir, dialoguePath);
+  await buildDialogue(ffmpeg, clips, config, workDir, dialoguePath);
   console.log(`   ✅ Dialogue track assembled`);
   onProgress?.("Dialogue track assembled", 87);
 

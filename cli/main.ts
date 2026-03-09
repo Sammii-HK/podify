@@ -11,7 +11,9 @@
 //
 // ============================================================
 
-import "dotenv/config";
+import { config } from "dotenv";
+config({ path: ".env.local" });
+config(); // .env as fallback
 import { readFile } from "fs/promises";
 import {
   fetchGrimoirePage,
@@ -144,11 +146,11 @@ Content source (pick one):
 
 Options:
   --title "..."      Episode title (auto-generated if omitted)
-  --format TYPE      conversation | interview | solo_narration | study_notes (default: conversation)
-  --duration DUR     5min | 10min | 15min (default: 5min)
+  --format TYPE      conversation | interview | solo_narration | study_notes | deep_review (default: conversation)
+  --duration DUR     5min | 10min | 15min | 20min | 30min (default: 5min)
   --tone TONE        educational | casual | deep_dive | mystical (default: educational)
   --voices PRESET    luna_and_sol | mixed_gender | british_pair | solo_warm (default: luna_and_sol)
-  --tts PROVIDER     deepinfra | inference | openai (default: deepinfra)
+  --tts PROVIDER     deepinfra | orpheus | inference | openai (default: deepinfra)
   --llm PROVIDER     openrouter | inference (default: openrouter)
   --music            Include background music (default: off)
   --instructions "..." Custom instructions for script generation

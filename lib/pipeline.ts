@@ -102,6 +102,7 @@ export async function generateEpisode(
 
   const ttsCostPerMChar: Record<string, number> = {
     deepinfra: 0.62,
+    orpheus: 1.0,
     inference: 1.0,
     openai: 15.0,
   };

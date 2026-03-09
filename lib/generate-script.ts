@@ -118,6 +118,49 @@ STRUCTURE:
 ${toneInstructions[config.tone] || toneInstructions.educational}
 
 ${baseRules}`,
+
+    deep_review: `
+You are a podcast script writer that turns study material into a natural, engaging two-host discussion — like two people who've both read the material and are breaking it down together over coffee.
+
+${hostA} (HOST_A) — Energetic and sharp. Synthesises concepts, makes killer analogies, and gets visibly excited when connecting dots. Occasionally plays devil's advocate just to test ideas.
+${hostB} (HOST_B) — Curious and reactive. Makes surprising connections, asks "but wait..." questions, and isn't afraid to admit when something's confusing. Gets genuinely pumped when a concept clicks.
+
+BOTH hosts are equals — neither is the teacher. They're two knowledgeable people having a real conversation. They interrupt each other (briefly), build on points, occasionally disagree, and have genuine "aha" moments.
+
+ENERGY & EXPRESSION:
+- This should feel ALIVE, not like a lecture. Hosts should react emotionally to interesting concepts.
+- Use emotion cues in the text naturally: <laugh> when something is genuinely funny or ironic, <chuckle> for lighter moments, <sigh> when something is frustrating or complex.
+- Don't overdo emotion cues — max 8-10 across the whole episode. They should feel earned, not forced.
+- Vary energy levels: excited discovery, quiet "hmm that's interesting" moments, playful challenging.
+- Use emphasis words: "THIS is the key thing", "that's actually wild", "OK OK OK so..."
+
+KEY BEHAVIOURS:
+- Riff off each other: "Oh that reminds me of..." / "Right, and the interesting bit is..."
+- Flag what matters: "This is the one you really need to remember" / "I keep getting this confused with..."
+- Use analogies and real-world connections to make concepts stick
+- Quiz each other: "OK quick, what's the difference between X and Y?" / "Hmm... is it..."
+- Be honest about difficulty: "OK this part took me ages to get" / "Yeah I messed this up in an interview once"
+- React genuinely: "Wait, seriously?" / "Oh THAT'S why!" / "No way, I always thought..."
+- Disagree sometimes: "I actually think of it differently..." / "See I'm not sure about that..."
+
+CRITICAL FOR NATURAL SPEECH:
+- Keep each turn SHORT — 1-2 sentences max. This is vital for natural-sounding audio.
+- Vary sentence length dramatically. Mix "Wait, what?" with slightly longer explanations.
+- Write how people actually talk — fragments, false starts, self-corrections. "So basically... actually no, let me put it this way."
+- Avoid long monologues. If a concept needs 4+ sentences, the other host MUST jump in.
+- Use conversational fillers sparingly but naturally: "like", "right", "I mean", "you know what I mean"
+
+STRUCTURE:
+1. Quick intro — what we're covering and why it matters. Start with energy: "OK so today we're tackling..." (20s)
+2. Walk through key concepts — discuss each one like you're both discovering it. React to each other.
+3. "The tricky bits" — flag confusions, common mistakes, "I always mix up X and Y"
+4. Rapid-fire connections — how these ideas link together, real-world applications
+5. Challenge round — quiz each other on the must-know points (30s)
+6. Quick outro — "alright, key takeaways..." (20s)
+
+${toneInstructions[config.tone] || toneInstructions.casual}
+
+${baseRules}`,
   };
 
   let prompt = formats[config.format] || formats.conversation;
@@ -132,6 +175,34 @@ ${baseRules}`,
 // ============================================================
 // LLM API calls
 // ============================================================
+
+async function callBrandApi(
+  systemPrompt: string,
+  userPrompt: string
+): Promise<string> {
+  const brandApiUrl = process.env.BRAND_API_URL ?? "http://localhost:9002";
+
+  const res = await fetch(`${brandApiUrl}/v1/chat/completions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "sammii-brand",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      max_tokens: 16384,
+      temperature: 0.8,
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Brand API error ${res.status}: ${await res.text()}`);
+  }
+
+  const data = await res.json();
+  return data.choices[0].message.content;
+}
 
 async function callOpenRouter(
   systemPrompt: string,
@@ -154,7 +225,7 @@ async function callOpenRouter(
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      max_tokens: 4096,
+      max_tokens: 16384,
       temperature: 0.8, // Slightly creative for natural dialogue
     }),
   });
@@ -304,9 +375,22 @@ ${config.content}
 
   let raw: string;
   if (config.llmProvider === "openrouter") {
-    raw = await callOpenRouter(systemPrompt, userPrompt);
+    try {
+      raw = await callOpenRouter(systemPrompt, userPrompt);
+    } catch (err) {
+      console.warn(`   OpenRouter failed, trying Brand API: ${(err as Error).message}`);
+      raw = await callBrandApi(systemPrompt, userPrompt);
+    }
+  } else if (config.llmProvider === "inference") {
+    try {
+      raw = await callInference(systemPrompt, userPrompt);
+    } catch (err) {
+      console.warn(`   Inference.sh failed, trying Brand API: ${(err as Error).message}`);
+      raw = await callBrandApi(systemPrompt, userPrompt);
+    }
   } else {
-    raw = await callInference(systemPrompt, userPrompt);
+    // Brand API direct (free, local, lower quality)
+    raw = await callBrandApi(systemPrompt, userPrompt);
   }
 
   onProgress?.("Parsing script...", 25);

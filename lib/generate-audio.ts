@@ -28,10 +28,14 @@ const TTS_PRONUNCIATIONS: [RegExp, string][] = [
   [/\bwiddershins\b/gi, "wid-er-shinz"],
 ];
 
-function prepareForTTS(text: string): string {
+function prepareForTTS(text: string, provider: string): string {
   let result = text;
   for (const [pattern, replacement] of TTS_PRONUNCIATIONS) {
     result = result.replace(pattern, replacement);
+  }
+  // Strip Orpheus emotion tags for non-Orpheus providers (they'd be read literally)
+  if (provider !== "orpheus") {
+    result = result.replace(/<(?:laugh|chuckle|sigh|gasp|cough|sniffle|groan|yawn)>/gi, "");
   }
   return result;
 }
@@ -68,6 +72,46 @@ async function ttsDeepInfra(
   if (!res.ok) {
     const err = await res.text();
     throw new Error(`DeepInfra TTS error ${res.status}: ${err}`);
+  }
+
+  const audioBuffer = Buffer.from(await res.arrayBuffer());
+  const estimatedDurationMs = (text.length / 1000) * 60 * 1000;
+
+  return { audio: audioBuffer, durationMs: estimatedDurationMs };
+}
+
+// ============================================================
+// TTS Provider: Orpheus (via DeepInfra) — expressive, LLM-based
+// ============================================================
+
+async function ttsOrpheus(
+  text: string,
+  voice: string,
+  speed?: number
+): Promise<{ audio: Buffer; durationMs: number }> {
+  const apiKey = process.env.DEEPINFRA_API_KEY;
+  if (!apiKey) throw new Error("DEEPINFRA_API_KEY not set");
+
+  const body: Record<string, unknown> = {
+    model: "canopylabs/orpheus-3b-0.1-ft",
+    input: text,
+    voice,
+    response_format: "mp3",
+  };
+  if (speed !== undefined) body.speed = speed;
+
+  const res = await fetch("https://api.deepinfra.com/v1/audio/speech", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Orpheus TTS error ${res.status}: ${err}`);
   }
 
   const audioBuffer = Buffer.from(await res.arrayBuffer());
@@ -186,11 +230,13 @@ export async function generateAudio(
   await mkdir(clipsDir, { recursive: true });
 
   const ttsFunc =
-    config.ttsProvider === "deepinfra"
-      ? ttsDeepInfra
-      : config.ttsProvider === "openai"
-        ? ttsOpenAI
-        : ttsInference;
+    config.ttsProvider === "orpheus"
+      ? ttsOrpheus
+      : config.ttsProvider === "deepinfra"
+        ? ttsDeepInfra
+        : config.ttsProvider === "openai"
+          ? ttsOpenAI
+          : ttsInference;
 
   const CONCURRENCY = 6;
 
@@ -221,9 +267,13 @@ export async function generateAudio(
       const filePath = join(clipsDir, fileName);
 
       try {
-        console.log(`   [clip ${idx}] ${line.speaker} → voice: ${voiceId} speed: ${voiceSpeed ?? 1.0}`);
-        const ttsText = prepareForTTS(line.text);
-        const { audio, durationMs } = await ttsFunc(ttsText, voiceId, voiceSpeed);
+        // Add subtle speed variation (±5%) for more natural rhythm
+        const jitter = 0.95 + Math.random() * 0.10; // 0.95 to 1.05
+        const effectiveSpeed = (voiceSpeed ?? 1.0) * jitter;
+        const roundedSpeed = Math.round(effectiveSpeed * 100) / 100;
+        console.log(`   [clip ${idx}] ${line.speaker} → voice: ${voiceId} speed: ${roundedSpeed}`);
+        const ttsText = prepareForTTS(line.text, config.ttsProvider);
+        const { audio, durationMs } = await ttsFunc(ttsText, voiceId, roundedSpeed);
         await writeFile(filePath, audio);
 
         clipResults[idx] = { speaker: line.speaker, filePath, durationMs };
@@ -259,7 +309,8 @@ export async function generateAudio(
   // Cost estimate
   const costPerMChar: Record<string, number> = {
     deepinfra: 0.62,
-    inference: 1.0, // approximate
+    orpheus: 1.0,
+    inference: 1.0,
     openai: 15.0,
   };
   const cost = (totalChars / 1_000_000) * (costPerMChar[config.ttsProvider] || 1);

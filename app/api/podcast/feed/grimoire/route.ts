@@ -48,17 +48,21 @@ function formatDuration(seconds: number): string {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-function buildItemXml(episode: EpisodeMeta, baseUrl: string): string {
+function buildItemXml(episode: EpisodeMeta, baseUrl: string, episodeNumber: number): string {
   const audioUrl = `${baseUrl}/api/podcast/episodes/${encodeURIComponent(episode.slug)}/audio`;
   const episodeLink = `${baseUrl}/feed#${encodeURIComponent(episode.slug)}`;
+  const coverUrl = `https://lunary.app/api/og/podcast-cover?title=${encodeURIComponent(episode.title)}&episode=${episodeNumber}`;
   return `    <item>
       <title>${cdata(episode.title)}</title>
       <description>${cdata(episode.description)}</description>
+      <itunes:summary>${cdata(episode.description)}</itunes:summary>
       <link>${escapeXml(episodeLink)}</link>
       <pubDate>${toRfc2822(episode.pubDate)}</pubDate>
       <enclosure url="${escapeXml(audioUrl)}" length="${episode.fileSizeBytes}" type="audio/mpeg" />
       <guid isPermaLink="false">${escapeXml(episode.guid)}</guid>
       <itunes:duration>${formatDuration(episode.durationSeconds)}</itunes:duration>
+      <itunes:episode>${episodeNumber}</itunes:episode>
+      <itunes:image href="${escapeXml(coverUrl)}" />
     </item>`;
 }
 
@@ -73,7 +77,11 @@ export async function GET() {
     (ep) => ep.source === "grimoire"
   );
 
-  const items = grimoireEpisodes.map((ep) => buildItemXml(ep, baseUrl)).join("\n");
+  // Number episodes: oldest = 1, newest = N
+  const totalEpisodes = grimoireEpisodes.length;
+  const items = grimoireEpisodes
+    .map((ep, i) => buildItemXml(ep, baseUrl, totalEpisodes - i))
+    .join("\n");
 
   const show = GRIMOIRE_SHOW;
 
@@ -100,6 +108,7 @@ export async function GET() {
     <managingEditor>${escapeXml(show.email)} (${escapeXml(show.author)})</managingEditor>
     <itunes:explicit>${show.explicit ? "yes" : "no"}</itunes:explicit>
     <itunes:category text="${escapeXml(show.category)}"><itunes:category text="${escapeXml(SUBCATEGORY)}" /></itunes:category>
+    <itunes:type>episodic</itunes:type>
     <atom:link href="${escapeXml(feedUrl)}" rel="self" type="application/rss+xml" />
 ${items}
   </channel>

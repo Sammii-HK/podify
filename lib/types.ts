@@ -25,10 +25,10 @@ export interface PodcastConfig {
   };
 
   /** TTS provider */
-  ttsProvider: "deepinfra" | "orpheus" | "inference" | "openai";
+  ttsProvider: "voicebox" | "deepinfra" | "orpheus" | "inference" | "openai";
 
   /** LLM provider for script generation */
-  llmProvider: "openrouter" | "inference" | "brandapi";
+  llmProvider: "deepinfra" | "openrouter" | "inference" | "brandapi" | "ollama";
 
   /** Include ambient background music */
   includeMusic: boolean;

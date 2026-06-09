@@ -101,14 +101,15 @@ export async function generateEpisode(
   );
 
   const ttsCostPerMChar: Record<string, number> = {
+    voicebox: 0,
     deepinfra: 0.62,
     orpheus: 1.0,
     inference: 1.0,
     openai: 15.0,
   };
   const ttsCost =
-    (totalChars / 1_000_000) * (ttsCostPerMChar[config.ttsProvider] || 1);
-  const llmCost = 0.03;
+    (totalChars / 1_000_000) * (ttsCostPerMChar[config.ttsProvider] ?? 1);
+  const llmCost = config.llmProvider === "ollama" || config.llmProvider === "brandapi" ? 0 : 0.03;
   const totalCost = ttsCost + llmCost;
 
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);

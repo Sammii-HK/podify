@@ -3,11 +3,26 @@
 // Converts each script line into an audio clip using Kokoro
 // ============================================================
 
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
+import { writeFile, mkdir, copyFile } from "fs/promises";
+import { createHash } from "crypto";
+import { join, isAbsolute } from "path";
 import { ScriptLine, AudioClip, PodcastConfig } from "@/lib/types";
 
 export type ProgressCallback = (message: string, percent: number) => void;
+
+type TTSResult = {
+  audio?: Buffer;
+  audioPath?: string;
+  durationMs: number;
+  voiceLabel?: string;
+};
+
+type TTSFunction = (
+  text: string,
+  voice: string,
+  speed?: number,
+  seed?: string
+) => Promise<TTSResult>;
 
 // ============================================================
 // Pronunciation fixes for words Kokoro TTS mispronounces
@@ -38,6 +53,157 @@ function prepareForTTS(text: string, provider: string): string {
     result = result.replace(/<(?:laugh|chuckle|sigh|gasp|cough|sniffle|groan|yawn)>/gi, "");
   }
   return result;
+}
+
+// ============================================================
+// TTS Provider: Voicebox (local Kokoro) — free on the Mini
+// ============================================================
+
+const VOICEBOX_DEFAULT_URL = "http://127.0.0.1:8880";
+const VOICEBOX_DEFAULT_DATA_DIR = join(
+  process.env.HOME ?? "/Users/sammii",
+  "Library/Application Support/sh.voicebox.app"
+);
+const VOICEBOX_PROFILE_MAP: Record<string, string> = {
+  af_heart: "lunary-kokoro-heart",
+  af_sarah: "lunary-kokoro-sarah",
+  af_aoede: "lunary-kokoro-sarah",
+  af_bella: "lunary-kokoro-bella",
+  af_sky: "lunary-kokoro-sky",
+};
+
+function csvEnv(name: string): string[] {
+  return (process.env[name] ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+function stableIndex(seed: string, size: number): number {
+  const digest = createHash("sha256").update(seed).digest();
+  return digest.readUInt32BE(0) % size;
+}
+
+function selectVoiceboxProfile(voice: string, seed: string): {
+  endpoint: "/generate" | "/speak";
+  body: Record<string, unknown>;
+  label: string;
+} {
+  const profileIds = csvEnv("VOICEBOX_PROFILE_IDS");
+  if (profileIds.length > 0) {
+    const profileId = profileIds[stableIndex(seed, profileIds.length)];
+    return {
+      endpoint: "/generate",
+      body: { profile_id: profileId },
+      label: `profile_id:${profileId}`,
+    };
+  }
+
+  const profiles = csvEnv("VOICEBOX_PROFILES");
+  const profile = profiles.length > 0
+    ? profiles[stableIndex(seed, profiles.length)]
+    : (VOICEBOX_PROFILE_MAP[voice] ?? voice);
+
+  return {
+    endpoint: "/speak",
+    body: { profile },
+    label: `profile:${profile}`,
+  };
+}
+
+async function voiceboxJson(baseUrl: string, endpoint: string, init?: RequestInit): Promise<Record<string, unknown>> {
+  const res = await fetch(`${baseUrl}${endpoint}`, init);
+  if (!res.ok) {
+    throw new Error(`Voicebox ${endpoint} ${res.status}: ${await res.text()}`);
+  }
+  return await res.json() as Record<string, unknown>;
+}
+
+async function waitForVoiceboxGeneration(baseUrl: string, generationId: string): Promise<Record<string, unknown>> {
+  const timeoutMs = Number(process.env.VOICEBOX_GENERATION_TIMEOUT_MS ?? "240000");
+  const pollMs = Number(process.env.VOICEBOX_GENERATION_POLL_MS ?? "1000");
+  const deadline = Date.now() + timeoutMs;
+  let last: Record<string, unknown> | undefined;
+
+  while (Date.now() < deadline) {
+    const payload = await voiceboxJson(baseUrl, `/history/${generationId}`);
+    last = payload;
+    const status = String(payload.status ?? "");
+    if (["completed", "failed", "cancelled", "canceled"].includes(status)) {
+      if (status !== "completed") {
+        throw new Error(`Voicebox generation ${generationId} ${status}: ${payload.error ?? "no error detail"}`);
+      }
+      return payload;
+    }
+    await new Promise((resolve) => setTimeout(resolve, pollMs));
+  }
+
+  throw new Error(`Voicebox generation ${generationId} timed out after ${timeoutMs}ms; last=${JSON.stringify(last ?? {})}`);
+}
+
+function resolveVoiceboxAudioPath(audioPath: string): string {
+  if (isAbsolute(audioPath)) return audioPath;
+  const dataDir = process.env.VOICEBOX_DATA_DIR ?? VOICEBOX_DEFAULT_DATA_DIR;
+  return join(dataDir, audioPath);
+}
+
+async function writeVoiceboxAudio(audioPath: string, filePath: string): Promise<void> {
+  if (/^https?:\/\//i.test(audioPath)) {
+    const audioRes = await fetch(audioPath);
+    if (!audioRes.ok) {
+      throw new Error(`Voicebox audio download ${audioRes.status}: ${await audioRes.text()}`);
+    }
+    await writeFile(filePath, Buffer.from(await audioRes.arrayBuffer()));
+    return;
+  }
+
+  await copyFile(resolveVoiceboxAudioPath(audioPath), filePath);
+}
+
+async function ttsVoicebox(
+  text: string,
+  voice: string,
+  speed?: number,
+  seed = text
+): Promise<TTSResult> {
+  const baseUrl = (process.env.VOICEBOX_BASE_URL ?? VOICEBOX_DEFAULT_URL).replace(/\/+$/, "");
+  const selectedProfile = selectVoiceboxProfile(voice, seed);
+  const engine = process.env.VOICEBOX_ENGINE?.trim();
+  const language = process.env.VOICEBOX_LANGUAGE?.trim() || "en";
+  const body: Record<string, unknown> = {
+    text,
+    language,
+    ...selectedProfile.body,
+  };
+
+  if (engine) body.engine = engine;
+  if (speed !== undefined) body.speed = speed;
+
+  const payload = await voiceboxJson(baseUrl, selectedProfile.endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Voicebox-Client-Id": "podify",
+    },
+    body: JSON.stringify(body),
+  });
+
+  const payloadStatus = String(payload.status ?? "");
+  const data = payload.id && ["", "queued", "generating", "pending"].includes(payloadStatus)
+    ? await waitForVoiceboxGeneration(baseUrl, String(payload.id))
+    : payload;
+
+  const audioPath = data.audio_path ?? data.audioPath ?? data.path ?? data.file;
+  if (!audioPath) {
+    throw new Error("Voicebox TTS response did not include an audio path");
+  }
+
+  const estimatedDurationMs = (text.length / 1000) * 60 * 1000;
+  return {
+    audioPath: String(audioPath),
+    durationMs: estimatedDurationMs,
+    voiceLabel: selectedProfile.label,
+  };
 }
 
 // ============================================================
@@ -229,19 +395,29 @@ export async function generateAudio(
   const clipsDir = join(workDir, "clips");
   await mkdir(clipsDir, { recursive: true });
 
-  const ttsFunc =
-    config.ttsProvider === "orpheus"
+  const paidFallbackEnabled = process.env.PODIFY_TTS_PAID_FALLBACK === "1";
+  const configuredProvider = config.ttsProvider || "voicebox";
+  const ttsFunc: TTSFunction =
+    configuredProvider === "voicebox"
+      ? ttsVoicebox
+      : configuredProvider === "orpheus"
       ? ttsOrpheus
-      : config.ttsProvider === "deepinfra"
+      : configuredProvider === "deepinfra"
         ? ttsDeepInfra
-        : config.ttsProvider === "openai"
+        : configuredProvider === "openai"
           ? ttsOpenAI
           : ttsInference;
 
-  const CONCURRENCY = 6;
+  const CONCURRENCY = configuredProvider === "voicebox"
+    ? Number(process.env.VOICEBOX_CONCURRENCY ?? "2")
+    : 6;
 
   console.log(`🔊 Generating ${script.length} audio clips (concurrency: ${CONCURRENCY})...`);
-  console.log(`   TTS provider: ${config.ttsProvider}`);
+  console.log(`   TTS provider: ${configuredProvider}`);
+  if (configuredProvider === "voicebox") {
+    console.log(`   Voicebox URL: ${process.env.VOICEBOX_BASE_URL ?? VOICEBOX_DEFAULT_URL}`);
+    console.log(`   Paid fallback: ${paidFallbackEnabled ? "enabled" : "disabled"}`);
+  }
   console.log(`   HOST_A voice: ${config.voices.host_a.id} (${config.voices.host_a.name})`);
   console.log(`   HOST_B voice: ${config.voices.host_b?.id || "MISSING — falling back to HOST_A!"} (${config.voices.host_b?.name || "N/A"})`);
 
@@ -265,21 +441,44 @@ export async function generateAudio(
 
       const fileName = `clip_${String(idx).padStart(3, "0")}_${line.speaker}.mp3`;
       const filePath = join(clipsDir, fileName);
+      const jitter = 0.95 + Math.random() * 0.10; // 0.95 to 1.05
+      const effectiveSpeed = (voiceSpeed ?? 1.0) * jitter;
+      const roundedSpeed = Math.round(effectiveSpeed * 100) / 100;
 
       try {
         // Add subtle speed variation (±5%) for more natural rhythm
-        const jitter = 0.95 + Math.random() * 0.10; // 0.95 to 1.05
-        const effectiveSpeed = (voiceSpeed ?? 1.0) * jitter;
-        const roundedSpeed = Math.round(effectiveSpeed * 100) / 100;
         console.log(`   [clip ${idx}] ${line.speaker} → voice: ${voiceId} speed: ${roundedSpeed}`);
-        const ttsText = prepareForTTS(line.text, config.ttsProvider);
-        const { audio, durationMs } = await ttsFunc(ttsText, voiceId, roundedSpeed);
-        await writeFile(filePath, audio);
+        const ttsText = prepareForTTS(line.text, configuredProvider);
+        const seed = `${line.speaker}:${idx}:${voiceId}:${ttsText}`;
+        const result = await ttsFunc(ttsText, voiceId, roundedSpeed, seed);
+        if (configuredProvider === "voicebox" && result.voiceLabel) {
+          console.log(`   [clip ${idx}] Voicebox ${result.voiceLabel}`);
+        }
+        if (configuredProvider === "voicebox" && result.audioPath) {
+          await writeVoiceboxAudio(result.audioPath, filePath);
+        } else if (result.audio) {
+          await writeFile(filePath, result.audio);
+        } else {
+          throw new Error("TTS provider returned no audio");
+        }
 
-        clipResults[idx] = { speaker: line.speaker, filePath, durationMs };
+        clipResults[idx] = { speaker: line.speaker, filePath, durationMs: result.durationMs };
         totalChars += line.text.length;
       } catch (err) {
-        console.error(`\n   ⚠️  Failed on clip ${idx} (${line.speaker}): ${(err as Error).message}`);
+        if (configuredProvider === "voicebox" && paidFallbackEnabled) {
+          try {
+            console.warn(`\n   ⚠️  Voicebox failed on clip ${idx}; trying paid DeepInfra fallback: ${(err as Error).message}`);
+            const ttsText = prepareForTTS(line.text, "deepinfra");
+            const { audio, durationMs } = await ttsDeepInfra(ttsText, voiceId, roundedSpeed);
+            await writeFile(filePath, audio);
+            clipResults[idx] = { speaker: line.speaker, filePath, durationMs };
+            totalChars += line.text.length;
+          } catch (fallbackErr) {
+            console.error(`\n   ⚠️  Paid fallback also failed on clip ${idx} (${line.speaker}): ${(fallbackErr as Error).message}`);
+          }
+        } else {
+          console.error(`\n   ⚠️  Failed on clip ${idx} (${line.speaker}): ${(err as Error).message}`);
+        }
       }
 
       completed++;
@@ -312,8 +511,9 @@ export async function generateAudio(
     orpheus: 1.0,
     inference: 1.0,
     openai: 15.0,
+    voicebox: 0,
   };
-  const cost = (totalChars / 1_000_000) * (costPerMChar[config.ttsProvider] || 1);
+  const cost = (totalChars / 1_000_000) * (costPerMChar[configuredProvider] ?? 1);
   console.log(`   💰 Estimated TTS cost: $${cost.toFixed(4)}`);
 
   onProgress?.(`Audio generated: ${clips.length} clips`, 80);

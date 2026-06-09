@@ -65,6 +65,40 @@ export async function POST(
     });
 
     console.log(`[podify] Job ${jobId} completed successfully`);
+
+    // Trigger Windmill repurpose webhook
+    const windmillWebhookUrl = process.env.WINDMILL_WEBHOOK_URL;
+    if (windmillWebhookUrl) {
+      try {
+        const transcriptText = result.transcript
+          .map((line) => `${line.speaker}: ${line.text}`)
+          .join("\n\n");
+
+        const windmillToken = process.env.WINDMILL_TOKEN;
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (windmillToken) {
+          headers["Authorization"] = `Bearer ${windmillToken}`;
+        }
+
+        await fetch(windmillWebhookUrl, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            content_type: "podcast_transcript",
+            title: config.title,
+            content: transcriptText,
+            source_url: result.blobUrl || "",
+            episode_slug: result.slug,
+            duration_seconds: result.durationSeconds,
+            word_count: result.wordCount,
+          }),
+        });
+        console.log(`[podify] Windmill repurpose webhook triggered for ${result.slug}`);
+      } catch (webhookErr) {
+        console.error(`[podify] Windmill webhook failed (non-fatal):`, webhookErr);
+      }
+    }
+
     return NextResponse.json({ status: "complete" });
   } catch (err) {
     console.error(`[podify] Generation failed for job ${jobId}:`, err);

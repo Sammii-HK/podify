@@ -206,6 +206,88 @@ async function callBrandApi(
   return data.choices[0].message.content;
 }
 
+function getDeepInfraModel(): string {
+  return process.env.DEEPINFRA_LLM_MODEL || "deepseek-ai/DeepSeek-V3-0324";
+}
+
+async function callOllama(
+  systemPrompt: string,
+  userPrompt: string
+): Promise<string> {
+  const ollamaUrl = process.env.OLLAMA_URL ?? "http://localhost:11434";
+  const model = process.env.OLLAMA_PODCAST_MODEL ?? "qwen3:14b";
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 300_000); // 5 min — local models are slower
+
+  const res = await fetch(`${ollamaUrl}/v1/chat/completions`, {
+    method: "POST",
+    signal: controller.signal,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: "/no_think " + userPrompt },
+      ],
+      max_tokens: 16384,
+      temperature: 0.8,
+      stream: false,
+    }),
+  });
+
+  clearTimeout(timeout);
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Ollama error ${res.status}: ${err}`);
+  }
+
+  const data = await res.json();
+  const content: string = data.choices[0].message.content ?? "";
+  // Strip any residual <think>...</think> blocks from thinking-mode models
+  return content.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+}
+
+async function callDeepInfra(
+  systemPrompt: string,
+  userPrompt: string
+): Promise<string> {
+  const apiKey = process.env.DEEPINFRA_API_KEY;
+  if (!apiKey) throw new Error("DEEPINFRA_API_KEY not set");
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 180_000);
+
+  const res = await fetch("https://api.deepinfra.com/v1/openai/chat/completions", {
+    method: "POST",
+    signal: controller.signal,
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: getDeepInfraModel(),
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      max_tokens: 16384,
+      temperature: 0.8,
+    }),
+  });
+
+  clearTimeout(timeout);
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`DeepInfra error ${res.status}: ${err}`);
+  }
+
+  const data = await res.json();
+  return data.choices[0].message.content;
+}
+
 async function callOpenRouter(
   systemPrompt: string,
   userPrompt: string
@@ -213,8 +295,12 @@ async function callOpenRouter(
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error("OPENROUTER_API_KEY not set");
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 120_000);
+
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
+    signal: controller.signal,
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
@@ -222,15 +308,17 @@ async function callOpenRouter(
       "X-Title": "Lunary Podcast Generator",
     },
     body: JSON.stringify({
-      model: "anthropic/claude-sonnet-4",
+      model: "google/gemini-2.5-flash",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
       max_tokens: 16384,
-      temperature: 0.8, // Slightly creative for natural dialogue
+      temperature: 0.8,
     }),
   });
+
+  clearTimeout(timeout);
 
   if (!res.ok) {
     const err = await res.text();
@@ -332,7 +420,7 @@ function cleanTextForTTS(text: string): string {
 export async function generateEpisodeDescription(
   title: string,
   transcript: ScriptLine[],
-  llmProvider: "openrouter" | "inference"
+  llmProvider: "deepinfra" | "openrouter" | "inference" | "brandapi" | "ollama"
 ): Promise<string> {
   const condensed = transcript
     .map((l) => l.text)
@@ -344,11 +432,17 @@ Based on this transcript excerpt:\n\n${condensed}`;
   const system =
     "You write concise podcast episode descriptions. Return ONLY the description text, no quotes or labels.";
 
-  const raw =
-    llmProvider === "openrouter"
-      ? await callOpenRouter(system, prompt)
-      : await callInference(system, prompt);
-  return raw.trim();
+  if (llmProvider === "deepinfra") {
+    return (await callDeepInfra(system, prompt)).trim();
+  } else if (llmProvider === "openrouter") {
+    return (await callOpenRouter(system, prompt)).trim();
+  } else if (llmProvider === "inference") {
+    return (await callInference(system, prompt)).trim();
+  } else if (llmProvider === "ollama") {
+    return (await callOllama(system, prompt)).trim();
+  } else {
+    return (await callBrandApi(system, prompt)).trim();
+  }
 }
 
 // ============================================================
@@ -376,7 +470,18 @@ ${config.content}
   onProgress?.(msg, 5);
 
   let raw: string;
-  if (config.llmProvider === "openrouter") {
+  if (config.llmProvider === "deepinfra") {
+    try {
+      console.log(`   DeepInfra model: ${getDeepInfraModel()}`);
+      raw = await callDeepInfra(systemPrompt, userPrompt);
+    } catch (err) {
+      if (!process.env.OPENROUTER_API_KEY) {
+        throw err;
+      }
+      console.warn(`   DeepInfra failed, trying OpenRouter: ${(err as Error).message}`);
+      raw = await callOpenRouter(systemPrompt, userPrompt);
+    }
+  } else if (config.llmProvider === "openrouter") {
     try {
       raw = await callOpenRouter(systemPrompt, userPrompt);
     } catch (err) {
@@ -388,6 +493,15 @@ ${config.content}
       raw = await callInference(systemPrompt, userPrompt);
     } catch (err) {
       console.warn(`   Inference.sh failed, trying Brand API: ${(err as Error).message}`);
+      raw = await callBrandApi(systemPrompt, userPrompt);
+    }
+  } else if (config.llmProvider === "ollama") {
+    try {
+      const model = process.env.OLLAMA_PODCAST_MODEL ?? "qwen3:14b";
+      console.log(`   Ollama model: ${model}`);
+      raw = await callOllama(systemPrompt, userPrompt);
+    } catch (err) {
+      console.warn(`   Ollama failed, falling back to Brand API: ${(err as Error).message}`);
       raw = await callBrandApi(systemPrompt, userPrompt);
     }
   } else {

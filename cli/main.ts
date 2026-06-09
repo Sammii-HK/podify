@@ -86,8 +86,8 @@ async function runBatch(listFile: string, baseConfig: Partial<PodcastConfig>) {
         duration: "5min",
         tone: "educational",
         voices: VOICE_PRESETS.luna_and_sol,
-        ttsProvider: "deepinfra",
-        llmProvider: "openrouter",
+        ttsProvider: "voicebox",
+        llmProvider: "ollama",
         includeMusic: false,
         ...baseConfig,
       };
@@ -150,8 +150,8 @@ Options:
   --duration DUR     5min | 10min | 15min | 20min | 30min (default: 5min)
   --tone TONE        educational | casual | deep_dive | mystical (default: educational)
   --voices PRESET    luna_and_sol | mixed_gender | british_pair | solo_warm (default: luna_and_sol)
-  --tts PROVIDER     deepinfra | orpheus | inference | openai (default: deepinfra)
-  --llm PROVIDER     openrouter | inference (default: openrouter)
+  --tts PROVIDER     voicebox | deepinfra | orpheus | inference | openai (default: voicebox)
+  --llm PROVIDER     ollama | brandapi | deepinfra | openrouter | inference (default: ollama)
   --music            Include background music (default: off)
   --instructions "..." Custom instructions for script generation
   --rebuild-feed     Rebuild feed.json from disk (uploads to Vercel Blob if BLOB_READ_WRITE_TOKEN is set)
@@ -184,8 +184,8 @@ Examples:
       duration: (args.duration as any) || "5min",
       tone: (args.tone as any) || "educational",
       voices: voicePreset,
-      ttsProvider: (args.tts as any) || "deepinfra",
-      llmProvider: (args.llm as any) || "openrouter",
+      ttsProvider: (args.tts as any) || "voicebox",
+      llmProvider: (args.llm as any) || "ollama",
       includeMusic: args.music === "true",
       customInstructions: args.instructions,
     });
@@ -237,8 +237,8 @@ Examples:
     duration: (args.duration as any) || "5min",
     tone: (args.tone as any) || "educational",
     voices: voicePreset,
-    ttsProvider: (args.tts as any) || "deepinfra",
-    llmProvider: (args.llm as any) || "openrouter",
+    ttsProvider: (args.tts as any) || "voicebox",
+    llmProvider: (args.llm as any) || "ollama",
     includeMusic: args.music === "true",
     customInstructions: args.instructions,
   };

@@ -56,8 +56,8 @@ export default function PodcastForm({
     duration: "5min",
     tone: "educational",
     voices: "luna_and_sol",
-    tts: "deepinfra",
-    llm: "openrouter",
+    tts: "voicebox",
+    llm: "ollama",
     includeMusic: false,
     instructions: "",
   });

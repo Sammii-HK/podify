@@ -55,7 +55,9 @@ ${categoryXml}
 }
 
 function buildItemXml(episode: EpisodeMeta, baseUrl: string, episodeIndex: number): string {
-  const audioUrl = `${baseUrl}/api/podcast/episodes/${encodeURIComponent(episode.slug)}/audio`;
+  // Use blob URL directly in the enclosure when available — avoids redirect hops
+  // that some podcast ingesters (e.g. YouTube) fail to follow
+  const audioUrl = episode.blobUrl ?? `${baseUrl}/api/podcast/episodes/${encodeURIComponent(episode.slug)}/audio`;
   const episodeLink = `${baseUrl}/feed#${encodeURIComponent(episode.slug)}`;
   const episodeNumber = episodeIndex + 1;
   // Per-episode cover: use Lunary OG endpoint if grimoire, otherwise show cover

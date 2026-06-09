@@ -49,7 +49,9 @@ function formatDuration(seconds: number): string {
 }
 
 function buildItemXml(episode: EpisodeMeta, baseUrl: string, episodeNumber: number): string {
-  const audioUrl = `${baseUrl}/api/podcast/episodes/${encodeURIComponent(episode.slug)}/audio`;
+  // Use blob URL directly in the enclosure when available — avoids redirect hops
+  // that some podcast ingesters (e.g. YouTube) fail to follow
+  const audioUrl = episode.blobUrl ?? `${baseUrl}/api/podcast/episodes/${encodeURIComponent(episode.slug)}/audio`;
   const episodeLink = `${baseUrl}/feed#${encodeURIComponent(episode.slug)}`;
   const coverUrl = `https://lunary.app/api/og/podcast-cover?title=${encodeURIComponent(episode.title)}&episode=${episodeNumber}`;
   return `    <item>

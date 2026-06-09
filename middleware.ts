@@ -6,6 +6,7 @@ const PUBLIC_PATHS = [
   "/api/auth/",
   "/api/podcast/feed/grimoire", // only the public Grimoire feed
   "/rss/grimoire",              // public RSS alias for Grimoire
+  "/the-grimoire-cover.png",    // podcast show artwork (fetched by podcast clients)
   "/_next/",
   "/favicon.ico",
 ];

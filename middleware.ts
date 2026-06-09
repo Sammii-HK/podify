@@ -4,8 +4,8 @@ import { SESSION_COOKIE, verifySessionToken } from "@/lib/auth";
 const PUBLIC_PATHS = [
   "/login",
   "/api/auth/",
-  "/api/podcast/feed",      // includes /feed/grimoire
-  "/rss/",                  // public RSS aliases
+  "/api/podcast/feed/grimoire", // only the public Grimoire feed
+  "/rss/grimoire",              // public RSS alias for Grimoire
   "/_next/",
   "/favicon.ico",
 ];

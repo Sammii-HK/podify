@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE, verifySessionToken } from "@/lib/auth";
+import { DEVICE_KEY_HEADER } from "@/lib/device-keys";
 
 const PUBLIC_PATHS = [
   "/login",
@@ -23,9 +24,19 @@ export async function middleware(request: NextRequest) {
 
   if (isPublic(pathname)) return NextResponse.next();
 
-  // API key auth (for programmatic clients)
+  // API key auth (for programmatic/CLI clients — shared static key, unchanged)
   const apiKey = request.headers.get("x-api-key");
   if (apiKey && process.env.API_KEY && apiKey === process.env.API_KEY) {
+    return NextResponse.next();
+  }
+
+  // Per-device key auth (for mobile app installs). Presence + format is all
+  // middleware checks — actual key validity and quota are enforced inside
+  // the route handler (see lib/device-keys.ts), since that requires reading
+  // Vercel Blob / doing async I/O keyed on the specific record and needs to
+  // return a rich 429 payload, not just pass/fail.
+  const deviceKey = request.headers.get(DEVICE_KEY_HEADER);
+  if (deviceKey && deviceKey.startsWith("dk_")) {
     return NextResponse.next();
   }
 

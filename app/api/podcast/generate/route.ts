@@ -4,6 +4,10 @@ import { createJob, updateJob, isAtCapacity } from "@/lib/jobs";
 import { generateEpisode } from "@/lib/pipeline";
 import { fetchGrimoirePage, fetchUrl } from "@/lib/fetch-content";
 import { PodcastConfig, VOICE_PRESETS } from "@/lib/types";
+import {
+  checkAndConsumeQuota,
+  DEVICE_KEY_HEADER,
+} from "@/lib/device-keys";
 
 export const maxDuration = 300;
 
@@ -31,6 +35,31 @@ export async function POST(request: Request) {
         { error: "Too many concurrent jobs. Try again shortly." },
         { status: 429 }
       );
+    }
+
+    // Per-device quota gate. Only applies to requests authenticated via a
+    // device key (mobile app installs) — the shared password/session and
+    // static API_KEY paths (owner's own CLI/browser use) are unmetered,
+    // exactly as before this change.
+    const deviceKey = request.headers.get(DEVICE_KEY_HEADER);
+    if (deviceKey) {
+      const quota = await checkAndConsumeQuota(deviceKey);
+      if (!quota) {
+        return NextResponse.json(
+          { error: "Invalid or unrecognized device key" },
+          { status: 401 }
+        );
+      }
+      if (!quota.ok) {
+        return NextResponse.json(
+          {
+            error: `Monthly generation limit reached (${quota.limit}/month). Try again next month, or upgrade for unlimited generations.`,
+            limit: quota.limit,
+            remaining: quota.remaining,
+          },
+          { status: 429 }
+        );
+      }
     }
 
     const body: GenerateRequest = await request.json();

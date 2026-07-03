@@ -81,7 +81,7 @@ export async function addEpisodeToManifest(
 // Rebuild feed from disk (for bootstrapping)
 // ============================================================
 
-async function getAudioDuration(filePath: string): Promise<number> {
+export async function getAudioDuration(filePath: string): Promise<number> {
   try {
     const ffmpeg = await getFFmpegPath();
     const stderr = execSync(`"${ffmpeg}" -i "${filePath}" -f null - 2>&1`, {

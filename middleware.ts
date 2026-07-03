@@ -7,6 +7,7 @@ const PUBLIC_PATHS = [
   "/api/podcast/feed/grimoire", // only the public Grimoire feed
   "/rss/grimoire",              // public RSS alias for Grimoire
   "/the-grimoire-cover.png",    // podcast show artwork (fetched by podcast clients)
+  "/api/library",                // Starter Content Library browse endpoint — read-only manifest listing, no auth (Podify has no user accounts; same public model as episode audio)
   "/_next/",
   "/favicon.ico",
 ];

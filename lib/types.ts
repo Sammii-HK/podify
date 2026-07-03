@@ -146,6 +146,11 @@ export interface EpisodeMeta {
   costUsd: number;
   blobUrl?: string;       // Vercel Blob URL for the MP3
   source?: string;        // Content source: "grimoire", "url", "text"
+
+  /** Starter Content Library tagging — all optional/additive, backward-compatible. */
+  category?: string;      // Display category, e.g. "Technical Interview Skills"
+  packId?: string;        // Groups episodes into a purchasable pack, e.g. "interview-skills"
+  isCurated?: boolean;    // True for episodes selected into the starter library
 }
 
 export interface ShowConfig {

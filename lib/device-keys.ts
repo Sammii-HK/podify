@@ -6,7 +6,7 @@
 // user-accounts system. Each mobile app install registers once via
 // POST /api/auth/register-device and receives a device API key. That key
 // is sent as `x-device-key` on subsequent /api/podcast/generate calls and
-// is rate-limited to a configurable number of generations per day.
+// is rate-limited to a configurable number of generations per month.
 //
 // Storage mirrors lib/jobs.ts: in-memory Map locally, Vercel Blob in
 // production (same BLOB_READ_WRITE_TOKEN already used for jobs/feed/audio).
@@ -18,21 +18,20 @@ export interface DeviceKeyRecord {
   key: string;
   deviceId: string;
   createdAt: number;
-  /** Generation timestamps (ms) kept only for the current UTC day, used to enforce the daily quota. */
-  usageToday: number[];
-  /** UTC day string (YYYY-MM-DD) usageToday's counters apply to. Reset when the day rolls over. */
-  usageDay: string;
+  /** Generation timestamps (ms) kept only for the current UTC calendar month, used to enforce the monthly quota. */
+  usageThisMonth: number[];
+  /** UTC month string (YYYY-MM) usageThisMonth's counters apply to. Reset when the month rolls over. */
+  usageMonth: string;
   /** Lifetime count of successful generations (never reset; for visibility/analytics only). */
   totalGenerations: number;
 }
 
-// Configurable daily quota. Defaults to 3 free generations/day per device.
-// NOTE: this default is a placeholder — the product owner should confirm the
-// real number based on acceptable DeepInfra cost exposure (~$0.03-0.04/episode).
-export const DAILY_QUOTA = (() => {
-  const raw = process.env.PODIFY_DAILY_DEVICE_QUOTA;
+// Configurable monthly quota. Defaults to 1 free generation/month per device
+// (confirmed product decision — free tier is 1 generation/month).
+export const MONTHLY_QUOTA = (() => {
+  const raw = process.env.PODIFY_MONTHLY_DEVICE_QUOTA;
   const parsed = raw ? parseInt(raw, 10) : NaN;
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 3;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
 })();
 
 export const DEVICE_KEY_HEADER = "x-device-key";
@@ -45,8 +44,8 @@ function keyBlobPath(key: string): string {
   return `device-keys/${key}.json`;
 }
 
-function todayUtc(): string {
-  return new Date().toISOString().slice(0, 10);
+function currentUtcMonth(): string {
+  return new Date().toISOString().slice(0, 7);
 }
 
 // ============================================================
@@ -105,8 +104,8 @@ export async function createDeviceKey(deviceId: string): Promise<DeviceKeyRecord
     key,
     deviceId,
     createdAt: Date.now(),
-    usageToday: [],
-    usageDay: todayUtc(),
+    usageThisMonth: [],
+    usageMonth: currentUtcMonth(),
     totalGenerations: 0,
   };
   deviceKeys.set(key, record);
@@ -131,12 +130,12 @@ export interface QuotaCheckResult {
   ok: boolean;
   remaining: number;
   limit: number;
-  usedToday: number;
+  usedThisMonth: number;
 }
 
 /**
  * Atomically-enough (single-region, best-effort) checks whether a device
- * key is under its daily quota and, if so, records the usage immediately.
+ * key is under its monthly quota and, if so, records the usage immediately.
  * Returns ok:false without mutating state if the quota is exhausted.
  */
 export async function checkAndConsumeQuota(
@@ -145,26 +144,26 @@ export async function checkAndConsumeQuota(
   const record = await getDeviceKey(key);
   if (!record) return null;
 
-  const today = todayUtc();
-  if (record.usageDay !== today) {
-    record.usageDay = today;
-    record.usageToday = [];
+  const currentMonth = currentUtcMonth();
+  if (record.usageMonth !== currentMonth) {
+    record.usageMonth = currentMonth;
+    record.usageThisMonth = [];
   }
 
-  const usedToday = record.usageToday.length;
-  if (usedToday >= DAILY_QUOTA) {
-    return { ok: false, remaining: 0, limit: DAILY_QUOTA, usedToday };
+  const usedThisMonth = record.usageThisMonth.length;
+  if (usedThisMonth >= MONTHLY_QUOTA) {
+    return { ok: false, remaining: 0, limit: MONTHLY_QUOTA, usedThisMonth };
   }
 
-  record.usageToday.push(Date.now());
+  record.usageThisMonth.push(Date.now());
   record.totalGenerations += 1;
   deviceKeys.set(key, record);
   if (useBlob()) await writeKeyToBlob(record);
 
   return {
     ok: true,
-    remaining: DAILY_QUOTA - record.usageToday.length,
-    limit: DAILY_QUOTA,
-    usedToday: record.usageToday.length,
+    remaining: MONTHLY_QUOTA - record.usageThisMonth.length,
+    limit: MONTHLY_QUOTA,
+    usedThisMonth: record.usageThisMonth.length,
   };
 }

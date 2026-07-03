@@ -53,7 +53,7 @@ export async function POST(request: Request) {
       if (!quota.ok) {
         return NextResponse.json(
           {
-            error: `Daily generation limit reached (${quota.limit}/day). Try again tomorrow.`,
+            error: `Monthly generation limit reached (${quota.limit}/month). Try again next month, or upgrade for unlimited generations.`,
             limit: quota.limit,
             remaining: quota.remaining,
           },

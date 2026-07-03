@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createDeviceKey, DAILY_QUOTA } from "@/lib/device-keys";
+import { createDeviceKey, MONTHLY_QUOTA } from "@/lib/device-keys";
 
 interface RegisterDeviceRequest {
   deviceId?: string;
@@ -28,6 +28,6 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({
     deviceKey: record.key,
     deviceId: record.deviceId,
-    dailyQuota: DAILY_QUOTA,
+    monthlyQuota: MONTHLY_QUOTA,
   });
 }

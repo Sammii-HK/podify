@@ -248,7 +248,47 @@ async function ttsDeepInfra(
 
 // ============================================================
 // TTS Provider: Orpheus (via DeepInfra) — expressive, LLM-based
+//
+// Uses the OpenAI-compatible endpoint (/v1/openai/audio/speech), not the
+// bare /v1/audio/speech path. This is the exact contract proven working
+// in Lunary's video-narration pipeline (src/lib/tts/orpheus.ts, deleted
+// in PR #230 when the whole video subsystem moved out of this repo —
+// Orpheus itself was never the problem). The OpenAI-compatible path
+// properly respects the `voice` parameter; the bare endpoint does not.
+//
+// Allow-listed voice IDs (from the proven Lunary integration):
+//   tara, leah, jess, leo, dan, mia, zac, zoe (default: jess)
 // ============================================================
+
+const ORPHEUS_VOICES = new Set([
+  "tara",
+  "leah",
+  "jess",
+  "leo",
+  "dan",
+  "mia",
+  "zac",
+  "zoe",
+]);
+const ORPHEUS_DEFAULT_VOICE = "jess";
+
+// Maps generic/Kokoro-style voice names to Orpheus voices, same mapping
+// used by the proven Lunary integration.
+const ORPHEUS_VOICE_MAP: Record<string, string> = {
+  nova: "jess",
+  shimmer: "tara",
+  onyx: "leo",
+  alloy: "mia",
+  echo: "dan",
+  fable: "zac",
+};
+
+function resolveOrpheusVoice(voice: string): string {
+  if (ORPHEUS_VOICES.has(voice)) return voice;
+  const mapped = ORPHEUS_VOICE_MAP[voice];
+  if (mapped && ORPHEUS_VOICES.has(mapped)) return mapped;
+  return ORPHEUS_DEFAULT_VOICE;
+}
 
 async function ttsOrpheus(
   text: string,
@@ -258,15 +298,17 @@ async function ttsOrpheus(
   const apiKey = process.env.DEEPINFRA_API_KEY;
   if (!apiKey) throw new Error("DEEPINFRA_API_KEY not set");
 
+  const safeVoice = resolveOrpheusVoice(voice);
+
   const body: Record<string, unknown> = {
     model: "canopylabs/orpheus-3b-0.1-ft",
     input: text,
-    voice,
+    voice: safeVoice,
     response_format: "mp3",
   };
   if (speed !== undefined) body.speed = speed;
 
-  const res = await fetch("https://api.deepinfra.com/v1/audio/speech", {
+  const res = await fetch("https://api.deepinfra.com/v1/openai/audio/speech", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,

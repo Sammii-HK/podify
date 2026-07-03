@@ -85,8 +85,8 @@ async function runBatch(listFile: string, baseConfig: Partial<PodcastConfig>) {
         format: "conversation",
         duration: "5min",
         tone: "educational",
-        voices: VOICE_PRESETS.luna_and_sol,
-        ttsProvider: "voicebox",
+        voices: VOICE_PRESETS.orpheus_jess_zac,
+        ttsProvider: "orpheus",
         llmProvider: "ollama",
         includeMusic: false,
         ...baseConfig,
@@ -149,8 +149,8 @@ Options:
   --format TYPE      conversation | interview | solo_narration | study_notes | deep_review (default: conversation)
   --duration DUR     5min | 10min | 15min | 20min | 30min (default: 5min)
   --tone TONE        educational | casual | deep_dive | mystical (default: educational)
-  --voices PRESET    luna_and_sol | mixed_gender | british_pair | solo_warm (default: luna_and_sol)
-  --tts PROVIDER     voicebox | deepinfra | orpheus | inference | openai (default: voicebox)
+  --voices PRESET    orpheus_jess_zac | orpheus_tara_leo | luna_and_sol | mixed_gender | british_pair | solo_warm (default: orpheus_jess_zac)
+  --tts PROVIDER     orpheus | voicebox | deepinfra | inference | openai (default: orpheus)
   --llm PROVIDER     ollama | brandapi | deepinfra | openrouter | inference (default: ollama)
   --music            Include background music (default: off)
   --instructions "..." Custom instructions for script generation
@@ -177,14 +177,14 @@ Examples:
   if (args.batch) {
     const voicePreset =
       VOICE_PRESETS[args.voices as keyof typeof VOICE_PRESETS] ||
-      VOICE_PRESETS.luna_and_sol;
+      VOICE_PRESETS.orpheus_jess_zac;
 
     await runBatch(args.batch, {
       format: (args.format as any) || "conversation",
       duration: (args.duration as any) || "5min",
       tone: (args.tone as any) || "educational",
       voices: voicePreset,
-      ttsProvider: (args.tts as any) || "voicebox",
+      ttsProvider: (args.tts as any) || "orpheus",
       llmProvider: (args.llm as any) || "ollama",
       includeMusic: args.music === "true",
       customInstructions: args.instructions,
@@ -228,7 +228,7 @@ Examples:
   // Build config
   const voicePreset =
     VOICE_PRESETS[args.voices as keyof typeof VOICE_PRESETS] ||
-    VOICE_PRESETS.luna_and_sol;
+    VOICE_PRESETS.orpheus_jess_zac;
 
   const config: PodcastConfig = {
     content,
@@ -237,7 +237,7 @@ Examples:
     duration: (args.duration as any) || "5min",
     tone: (args.tone as any) || "educational",
     voices: voicePreset,
-    ttsProvider: (args.tts as any) || "voicebox",
+    ttsProvider: (args.tts as any) || "orpheus",
     llmProvider: (args.llm as any) || "ollama",
     includeMusic: args.music === "true",
     customInstructions: args.instructions,

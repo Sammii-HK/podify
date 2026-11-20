@@ -1,0 +1,67 @@
+{
+  "baseline": "0ab8e97",
+  "method": "Actual middleware transpiled into a VM with only three stub imports and synthetic process environment. Plain in-memory request objects; no Next server, network, provider, Blob or real key/session used. Route bodies were read, not invoked.",
+  "middlewareSha256": "2561214324f404c6317c783723683dc9220347ea4ab7188cdd89ac84d8b60152",
+  "rows": [
+    {
+      "identity": "no credentials",
+      "path": "/feed",
+      "decision": "redirect",
+      "location": "/login"
+    },
+    {
+      "identity": "prefix only",
+      "path": "/feed",
+      "decision": "next"
+    },
+    {
+      "identity": "prefix only",
+      "path": "/api/podcast/feed",
+      "decision": "next"
+    },
+    {
+      "identity": "prefix only",
+      "path": "/api/podcast/status/fixture",
+      "decision": "next"
+    },
+    {
+      "identity": "prefix only",
+      "path": "/api/podcast/process/fixture",
+      "decision": "next"
+    },
+    {
+      "identity": "prefix only",
+      "path": "/api/podcast/fixture/audio",
+      "decision": "next"
+    },
+    {
+      "identity": "no credentials",
+      "path": "/api/podcast/feed",
+      "decision": "json",
+      "status": 401,
+      "body": {
+        "error": "Unauthorized"
+      }
+    },
+    {
+      "identity": "intentional public",
+      "path": "/api/podcast/feed/grimoire",
+      "decision": "next"
+    },
+    {
+      "identity": "intentional public",
+      "path": "/api/library",
+      "decision": "next"
+    },
+    {
+      "identity": "intentional public",
+      "path": "/api/podcast/episodes/fixture/audio",
+      "decision": "next"
+    },
+    {
+      "identity": "operator fixture",
+      "path": "/api/podcast/feed",
+      "decision": "next"
+    }
+  ]
+}

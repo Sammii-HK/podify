@@ -8,11 +8,11 @@ Baseline: local `0ab8e97`, 20 November 2026. Source and isolated mocks only. No 
 
 The operator API key and signed browser session are existing access paths. Device registration is intentionally public and its caller-supplied `deviceId` is not an ownership identity. Keys are issued as `dk_` plus 32 hexadecimal characters. Registration and quota remain product policy, not a physical-device identity guarantee.
 
-## Preserve intentional public outputs
+## Preserve current public output contracts
 
 - Public Grimoire RSS: `/api/podcast/feed/grimoire` and `/rss/grimoire`, filtered by Grimoire source.
 - Public `/api/library`: curated manifest entries only, with existing pack/category filters.
-- Public `/api/podcast/episodes/:slug/audio`: currently resolves any matching manifest slug, not only curated or Grimoire entries. Keep this intentional public media contract unchanged.
+- Public `/api/podcast/episodes/:slug/audio`: currently resolves any matching manifest slug, not only curated or Grimoire entries. Preserve this observed behaviour in the bounded guard batch; source code does not establish owner intent that every manifest item should be public. Unrestricted slug visibility remains a separate release blocker.
 - Existing login, exact auth endpoints, brand assets and Next static assets.
 - `/feed` and full `/api/podcast/feed` remain operator-only according to current middleware. README wording calling the full feed public conflicts with that implementation. Do not open it to devices or the public as part of this fix.
 
@@ -39,3 +39,7 @@ A private-store migration, historical rewrite, key rotation or encryption design
 ## Status
 
 Dependency receipt saved separately as `0ab8e97` (53 Vitest tests, 11 icon regressions, types, normal guarded build and audit zero). No authentication implementation has been changed in this audit batch. Proposed design sent to root for review before mutation.
+
+## Reviewed implementation follow-up
+
+Root approved the bounded source/mock implementation after this plan was saved. See `device-auth-review-20261120.md` for its actual evidence and unresolved blockers. The earlier VM receipt remains explicitly the pre-fix baseline, not current middleware behaviour.

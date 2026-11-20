@@ -1,6 +1,6 @@
+import { requireJob, privateJson } from "@/lib/job-access";
 import "dotenv/config";
-import { NextResponse } from "next/server";
-import { getJob, updateJob } from "@/lib/jobs";
+import { updateJob } from "@/lib/jobs";
 import { generateEpisode } from "@/lib/pipeline";
 
 // This route runs as its own serverless function invocation triggered by the
@@ -9,22 +9,20 @@ import { generateEpisode } from "@/lib/pipeline";
 export const maxDuration = 300;
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ jobId: string }> },
 ) {
   const { jobId } = await params;
-  const job = await getJob(jobId);
-
-  if (!job) {
-    return NextResponse.json({ error: "Job not found" }, { status: 404 });
-  }
+  const access = await requireJob(request, jobId);
+  if (access.response) return access.response;
+  const job = access.job;
 
   if (job.status !== "pending") {
-    return NextResponse.json({ error: "Job already started" }, { status: 409 });
+    return privateJson({ error: "Job already started" }, { status: 409 });
   }
 
   if (!job.config) {
-    return NextResponse.json({ error: "Job has no config" }, { status: 400 });
+    return privateJson({ error: "Job has no config" }, { status: 400 });
   }
 
   const config = job.config;
@@ -99,7 +97,7 @@ export async function POST(
       }
     }
 
-    return NextResponse.json({ status: "complete" });
+    return privateJson({ status: "complete" });
   } catch (err) {
     console.error(`[podify] Generation failed for job ${jobId}:`, err);
     try {
@@ -111,6 +109,6 @@ export async function POST(
     } catch (updateErr) {
       console.error(`[podify] Failed to update error status for job ${jobId}:`, updateErr);
     }
-    return NextResponse.json({ error: "Generation failed" }, { status: 500 });
+    return privateJson({ error: "Generation failed" }, { status: 500 });
   }
 }

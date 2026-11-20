@@ -1,13 +1,10 @@
 import "dotenv/config";
-import { NextResponse } from "next/server";
+import { resolvePrincipal, jobOwner, privateJson } from "@/lib/job-access";
 import { createJob, updateJob, isAtCapacity } from "@/lib/jobs";
 import { generateEpisode } from "@/lib/pipeline";
 import { fetchGrimoirePage, fetchUrl } from "@/lib/fetch-content";
 import { PodcastConfig, VOICE_PRESETS } from "@/lib/types";
-import {
-  checkAndConsumeQuota,
-  DEVICE_KEY_HEADER,
-} from "@/lib/device-keys";
+import { checkAndConsumeQuota } from "@/lib/device-keys";
 
 export const maxDuration = 300;
 
@@ -30,8 +27,10 @@ interface GenerateRequest {
 
 export async function POST(request: Request) {
   try {
+    const principal = await resolvePrincipal(request);
+    if (!principal) return privateJson({ error: "Unauthorized" }, { status: 401 });
     if (await isAtCapacity()) {
-      return NextResponse.json(
+      return privateJson(
         { error: "Too many concurrent jobs. Try again shortly." },
         { status: 429 }
       );
@@ -40,18 +39,17 @@ export async function POST(request: Request) {
     // Per-device quota gate. Only applies to requests authenticated via a
     // device key (mobile app installs) — the shared password/session and
     // static API_KEY paths (owner's own CLI/browser use) are unmetered,
-    // exactly as before this change.
-    const deviceKey = request.headers.get(DEVICE_KEY_HEADER);
-    if (deviceKey) {
-      const quota = await checkAndConsumeQuota(deviceKey);
+    // Operator credentials take precedence if a client also supplies a device key.
+    if (principal.kind === "device") {
+      const quota = await checkAndConsumeQuota(principal.key);
       if (!quota) {
-        return NextResponse.json(
+        return privateJson(
           { error: "Invalid or unrecognized device key" },
           { status: 401 }
         );
       }
       if (!quota.ok) {
-        return NextResponse.json(
+        return privateJson(
           {
             error: `Monthly generation limit reached (${quota.limit}/month). Try again next month, or upgrade for unlimited generations.`,
             limit: quota.limit,
@@ -77,14 +75,14 @@ export async function POST(request: Request) {
       content = await fetchGrimoirePage(body.grimoire_path);
       detectedSource = "grimoire";
     } else {
-      return NextResponse.json(
+      return privateJson(
         { error: "Provide content, url, or grimoire_path" },
         { status: 400 }
       );
     }
 
     if (content.length < 50) {
-      return NextResponse.json(
+      return privateJson(
         { error: "Content too short (< 50 chars)" },
         { status: 400 }
       );
@@ -114,13 +112,13 @@ export async function POST(request: Request) {
       source: body.source || detectedSource,
     };
 
-    const job = await createJob();
+    const job = await createJob(jobOwner(principal));
     await updateJob(job.id, { config });
 
     // Async mode: return jobId immediately, caller triggers POST /process/:id
     if (body.async) {
       console.log(`[podify] Job ${job.id} created (async mode)`);
-      return NextResponse.json({ jobId: job.id });
+      return privateJson({ jobId: job.id });
     }
 
     // Sync mode (default): run generation inline. The caller's HTTP connection
@@ -161,7 +159,7 @@ export async function POST(request: Request) {
         },
       });
 
-      return NextResponse.json({ jobId: job.id, status: "complete", result: {
+      return privateJson({ jobId: job.id, status: "complete", result: {
         slug: result.slug,
         blobUrl: result.blobUrl,
         audioUrl: result.blobUrl || `/api/podcast/episodes/${result.slug}/audio`,
@@ -174,11 +172,12 @@ export async function POST(request: Request) {
       console.error(`[podify] Generation failed for job ${job.id}:`, err);
       const message = err instanceof Error ? err.message : String(err);
       await updateJob(job.id, { status: "error", message, error: message }).catch(() => {});
-      return NextResponse.json({ jobId: job.id, status: "error", error: message }, { status: 500 });
+      return privateJson({ jobId: job.id, status: "error", error: message }, { status: 500 });
     }
   } catch (err) {
-    return NextResponse.json(
-      { error: (err as Error).message },
+    console.error("[podify] Generation request failed", err);
+    return privateJson(
+      { error: "Generation request failed" },
       { status: 500 }
     );
   }

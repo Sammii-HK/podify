@@ -2,6 +2,7 @@
 // Job manager — in-memory locally, Vercel Blob on Vercel
 // ============================================================
 
+import type { JobOwner } from "@/lib/job-access";
 import { put, list } from "@vercel/blob";
 import { PodcastConfig, ScriptLine } from "@/lib/types";
 
@@ -12,6 +13,7 @@ export interface Job {
   stage: "scripting" | "audio" | "assembly" | "complete" | null;
   message: string;
   createdAt: number;
+  owner?: JobOwner;
   config?: PodcastConfig;
   result?: {
     audioPath: string;
@@ -76,10 +78,11 @@ async function readJobFromBlob(id: string): Promise<Job | undefined> {
 // Public API
 // ============================================================
 
-export async function createJob(): Promise<Job> {
+export async function createJob(owner?: JobOwner): Promise<Job> {
   const id = crypto.randomUUID();
   const job: Job = {
     id,
+    ...(owner ? { owner } : {}),
     status: "pending",
     progress: 0,
     stage: null,

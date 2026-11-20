@@ -27,6 +27,15 @@ describe("jobs", () => {
     expect(job.message).toBe("Queued");
   });
 
+  it("persists server-assigned ownership across progress updates without changing legacy records", async () => {
+    const { createJob, updateJob, getJob } = await import("@/lib/jobs");
+    const owner = { kind: "device" as const, fingerprint: "synthetic-key-fingerprint" };
+    const job = await createJob(owner);
+    await updateJob(job.id, { progress: 45 });
+    expect((await getJob(job.id))?.owner).toEqual(owner);
+    expect((await createJob()).owner).toBeUndefined();
+  });
+
   it("getJob retrieves a created job", async () => {
     const { createJob, getJob } = await import("@/lib/jobs");
     const job = await createJob();

@@ -2,6 +2,8 @@
 
 Isolated `codex/podify-product-polish` from committed baseline `460c62a`. The main checkout's modified TypeScript cache and untracked interview files were not read or copied. Sparse checkout excluded environment files, output/private/temp folders and build caches before tracked source was populated. No generation, model, TTS, FFmpeg, provider, Blob, database, account or private-feed operation was invoked.
 
+This is the historical UI batch receipt at `4d7ac4a`. Its preserved-source statements apply at that commit. The later bounded auth/ownership batch intentionally changes job/auth route guards; see `device-auth-review-20261120.md` for current scope and unresolved release blockers. UI fixtures and screenshots do not establish authentication or generation proof.
+
 ## Actual repairs
 
 The source, title and settings stay mounted through request failures. A typed client handoff validates the selected source, acknowledgement, requested job ID, status and result before advancing. Non-JSON HTTP failures are explained without losing the brief. A synchronous submission lock prevents duplicate clicks before React updates the disabled state. Network/timeout ambiguity is kept explicit: no acknowledgement does not prove that the server created no job, and the UI asks the user to check before resubmitting. This does not add server-side idempotency.

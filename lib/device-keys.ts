@@ -34,7 +34,7 @@ export const MONTHLY_QUOTA = (() => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
 })();
 
-export const DEVICE_KEY_HEADER = "x-device-key";
+export { DEVICE_KEY_HEADER } from "@/lib/access-routes";
 
 function useBlob(): boolean {
   return !!process.env.BLOB_READ_WRITE_TOKEN;

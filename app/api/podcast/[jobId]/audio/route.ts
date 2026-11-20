@@ -1,20 +1,19 @@
+import { requireJob, privateJson } from "@/lib/job-access";
 import { NextResponse } from "next/server";
 import { readFile } from "fs/promises";
-import { getJob } from "@/lib/jobs";
+
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ jobId: string }> }
 ) {
   const { jobId } = await params;
-  const job = await getJob(jobId);
-
-  if (!job) {
-    return NextResponse.json({ error: "Job not found" }, { status: 404 });
-  }
+  const access = await requireJob(request, jobId);
+  if (access.response) return access.response;
+  const job = access.job;
 
   if (job.status !== "complete" || !job.result?.audioPath) {
-    return NextResponse.json(
+    return privateJson(
       { error: "Audio not ready" },
       { status: 404 }
     );
@@ -24,13 +23,14 @@ export async function GET(
     const audioBuffer = await readFile(job.result.audioPath);
     return new NextResponse(audioBuffer, {
       headers: {
+        "Cache-Control": "private, no-store",
         "Content-Type": "audio/mpeg",
         "Content-Length": audioBuffer.length.toString(),
         "Content-Disposition": `inline; filename="podcast.mp3"`,
       },
     });
   } catch {
-    return NextResponse.json(
+    return privateJson(
       { error: "Audio file not found on disk" },
       { status: 404 }
     );

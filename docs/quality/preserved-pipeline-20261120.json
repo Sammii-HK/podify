@@ -1,6 +1,6 @@
 {
   "baseline": "460c62a",
-  "scope": "Tracked source bytes, not runtime or provider validation. Main untracked files were never read or copied.",
+  "scope": "Tracked source bytes, not runtime or provider validation. Main untracked files were never read or copied. Historical UI-batch receipt only; later auth changes are recorded separately in device-auth-preserved-source-20261120.json.",
   "files": [
     {
       "path": "lib/pipeline.ts",
@@ -72,5 +72,6 @@
       "gitBlob": "613ea72d71514fda330e3be6cfc7a735eb15cc71",
       "unchanged": true
     }
-  ]
+  ],
+  "recordedAtCommit": "4d7ac4a"
 }

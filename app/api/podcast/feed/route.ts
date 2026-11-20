@@ -1,3 +1,4 @@
+import { resolvePrincipal, privateJson } from "@/lib/job-access";
 import { NextResponse } from "next/server";
 import { readManifest } from "@/lib/feed";
 import { EpisodeMeta, ShowConfig } from "@/lib/types";
@@ -77,34 +78,40 @@ function buildItemXml(episode: EpisodeMeta, baseUrl: string, episodeIndex: numbe
     </item>`;
 }
 
-export async function GET() {
-  const manifest = await readManifest(OUTPUT_DIR);
-  const baseUrl = (
-    process.env.PODIFY_BASE_URL || "http://localhost:3456"
-  ).replace(/\/$/, "");
-  const feedUrl = `${baseUrl}/api/podcast/feed`;
+export async function GET(request: Request) {
+  const principal = await resolvePrincipal(request);
+  if (principal?.kind !== "operator") return privateJson({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const manifest = await readManifest(OUTPUT_DIR);
+    const baseUrl = (
+      process.env.PODIFY_BASE_URL || "http://localhost:3456"
+    ).replace(/\/$/, "");
+    const feedUrl = `${baseUrl}/api/podcast/feed`;
 
-  // Episodes are stored newest-first; number them in reverse so oldest = Ep 1
-  const totalEpisodes = manifest.episodes.length;
-  const items = manifest.episodes
-    .map((ep, i) => buildItemXml(ep, baseUrl, totalEpisodes - i - 1))
-    .join("\n");
+    // Episodes are stored newest-first; number them in reverse so oldest = Ep 1
+    const totalEpisodes = manifest.episodes.length;
+    const items = manifest.episodes
+      .map((ep, i) => buildItemXml(ep, baseUrl, totalEpisodes - i - 1))
+      .join("\n");
 
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0"
-  xmlns:itunes="http://www.itunes.apple.com/dtds/podcast-1.0.dtd"
-  xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-${buildChannelXml(manifest.show, feedUrl)}
-    <itunes:type>episodic</itunes:type>
-${items}
-  </channel>
-</rss>`;
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+  <rss version="2.0"
+    xmlns:itunes="http://www.itunes.apple.com/dtds/podcast-1.0.dtd"
+    xmlns:atom="http://www.w3.org/2005/Atom">
+    <channel>
+  ${buildChannelXml(manifest.show, feedUrl)}
+      <itunes:type>episodic</itunes:type>
+  ${items}
+    </channel>
+  </rss>`;
 
-  return new NextResponse(xml, {
-    headers: {
-      "Content-Type": "application/rss+xml; charset=utf-8",
-      "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
-    },
-  });
+    return new NextResponse(xml, {
+      headers: {
+        "Content-Type": "application/rss+xml; charset=utf-8",
+        "Cache-Control": "private, no-store",
+      },
+    });
+  } catch {
+    return privateJson({ error: "Feed unavailable" }, { status: 503 });
+  }
 }

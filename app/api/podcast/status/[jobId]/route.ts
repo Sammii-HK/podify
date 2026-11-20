@@ -1,22 +1,20 @@
-import { NextResponse } from "next/server";
-import { getJob } from "@/lib/jobs";
+import { requireJob, privateJson } from "@/lib/job-access";
+
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ jobId: string }> }
 ) {
   const { jobId } = await params;
-  const job = await getJob(jobId);
-
-  if (!job) {
-    return NextResponse.json({ error: "Job not found" }, { status: 404 });
-  }
+  const access = await requireJob(request, jobId);
+  if (access.response) return access.response;
+  const job = access.job;
 
   const baseUrl = (
     process.env.PODIFY_BASE_URL || "http://localhost:3456"
   ).replace(/\/$/, "");
 
-  return NextResponse.json({
+  return privateJson({
     id: job.id,
     status: job.status,
     progress: job.progress,

@@ -31,19 +31,21 @@ The normal build was reviewed for import-time IO first. Feed rendering is explic
 - Actual title verified as Podify: offline interface review before proof.
 - Desktop 1144px and phone 390px have no page overflow in the brief, progress, player and feed views.
 - Switching to the article URL, reviewing it locally and returning to text preserved the hand-written source. The local action explicitly reported that no generation request was sent.
-- Native radio ArrowRight selected the mixed voice pair. Source/header controls measured at least44px, with the phone source choices approximately58px and the submit action46px.
-- The player layout displays the corrected1m0s rounding. There were no audio elements or active audio links in the fixture, so no media request could follow from these checks.
-- Enter expanded the actual transcript list from8 to10 lines and updated aria-expanded.
-- Feed Grimoire filtering changed3 to1; an unmatched search produced an empty state; Clear returned3 and All episodes. Its controls measured44px.
-- The progress example selected Assembly, exposing aria-valuenow88 and current-step semantics. It is explicitly an illustration, not a running job.
-- Browser error log was empty. Viewport reset to1144px and ownership released before another agent used Chrome.
+- Native radio ArrowRight selected the mixed voice pair. Source/header controls measured at least 44px, with the phone source choices approximately 58px and the submit action 46px.
+- The player layout displays the corrected 1m 0s rounding. There were no audio elements or active audio links in the fixture, so no media request could follow from these checks.
+- Enter expanded the actual transcript list from 8 to 10 lines and updated aria-expanded.
+- Feed Grimoire filtering changed 3 to 1; an unmatched search produced an empty state; Clear returned 3 and All episodes. Its controls measured 44px.
+- The progress example selected Assembly, exposing aria-valuenow 88 and current-step semantics. It is explicitly an illustration, not a running job.
+- Browser error log was empty. Viewport reset to 1144px and ownership released before another agent used Chrome.
 
 Saved screenshots under `.codex-artifacts`: podify-studio-desktop.jpg, podify-studio-phone.jpg, podify-brief-phone.jpg, podify-progress-phone.jpg, podify-player-desktop.jpg, podify-feed-desktop.jpg and podify-feed-phone.jpg. Desktop studio/player/feed captures were directly inspected after saving. Some viewport captures omit the top banner because of their scroll position; player/feed still show disconnected/illustrative content, and any future portfolio use needs an explicit fixture caption. They must not be presented as generated-output, real-feed or live-site proof. Later changes to hidden initial-progress semantics, request deadlines, remote-link naming and favicon metadata do not change the captured fixture states.
 
 ## Checks and limits
 
-Fifty Vitest cases and eleven canonical icon regressions pass. New client checks cover request/result validation, source payload boundaries, duplicate submission, processing failure, bounded and aborted polling, late responses, timer release, duration rollover, safe audio URLs, kept form state, literal transcript labels, media error/cleanup and the static-icon auth boundary. The old feed tests now exercise the actual filter function instead of a duplicate implementation. TypeScript and normal release icon/freshness checks pass. Icon scan: zero blocking findings,41 contextual content-symbol candidates in retained CLI/pipeline source; no workspace-wide clean claim.
+Fifty Vitest cases and eleven canonical icon regressions pass. New client checks cover request/result validation, source payload boundaries, duplicate submission, processing failure, bounded and aborted polling, late responses, timer release, duration rollover, safe audio URLs, kept form state, literal transcript labels, media error/cleanup and the static-icon auth boundary. The old feed tests now exercise the actual filter function instead of a duplicate implementation. TypeScript and normal release icon/freshness checks pass. Icon scan: zero blocking findings, 41 contextual content-symbol candidates in retained CLI/pipeline source; no workspace-wide clean claim.
 
-The initial lock format6 was incompatible with the declared pnpm10 package manager. Adding the required UI/review dependencies regenerated a valid format9 lock with resolutions inside the existing declared major ranges. Install scripts were disabled, so media binaries were not downloaded or run through postinstall. The resolved UI graph audit still had three high, two moderate and one low findings; a separate compatible dependency follow-up is required before calling that graph clean.
+The initial lock format 6 was incompatible with the declared pnpm 10 package manager. Adding the required UI/review dependencies regenerated a valid format 9 lock with resolutions inside the existing declared major ranges. Install scripts were disabled, so media binaries were not downloaded or run through postinstall. The resolved UI graph audit still had three high, two moderate and one low findings; a separate compatible dependency follow-up is required before calling that graph clean.
 
 Real generation, provider configuration/quality, audio delivery or playback, codecs/assembly, Blob persistence, private RSS contents, device/account authentication, quota consumption, long/background sessions and other browser/assistive-technology combinations remain unverified. Native audio lifecycle tests use stubs; browser evidence is deliberately media-disconnected. No release, push, merge or deployment was performed.
+
+Compatible dependency follow-up is now recorded separately in `dependency-review-20261120.md`: full and production audits report zero findings. This does not certify the inherited device-auth/job-ownership boundary; it is a separate source/mock review before release.

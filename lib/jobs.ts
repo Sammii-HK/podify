@@ -2,6 +2,7 @@
 // Job manager — in-memory locally, Vercel Blob on Vercel
 // ============================================================
 
+import type { JobDiagnostic } from "@/lib/job-messages";
 import type { JobOwner } from "@/lib/job-access";
 import { put, list } from "@vercel/blob";
 import { PodcastConfig, ScriptLine } from "@/lib/types";
@@ -25,6 +26,7 @@ export interface Job {
     costUsd: number;
   };
   error?: string;
+  diagnostic?: JobDiagnostic;
 }
 
 function useBlob(): boolean {

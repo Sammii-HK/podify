@@ -1,3 +1,4 @@
+import { safeJobMessage, safeStage, operatorDiagnostic, GENERATION_ERROR } from "@/lib/job-messages";
 import { requireJob, privateJson } from "@/lib/job-access";
 
 
@@ -18,8 +19,8 @@ export async function GET(
     id: job.id,
     status: job.status,
     progress: job.progress,
-    stage: job.stage,
-    message: job.message,
+    stage: safeStage(job.stage),
+    message: safeJobMessage(job.status, job.stage),
     result: job.status === "complete"
       ? {
           slug: job.result?.slug,
@@ -35,6 +36,7 @@ export async function GET(
           costUsd: job.result?.costUsd,
         }
       : undefined,
-    error: job.error,
+    error: job.status === "error" ? GENERATION_ERROR : undefined,
+    diagnostic: access.principal.kind === "operator" ? operatorDiagnostic(job.diagnostic) : undefined,
   });
 }

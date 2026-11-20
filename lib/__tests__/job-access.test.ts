@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 const mocks = vi.hoisted(() => ({
   key: vi.fn(), get: vi.fn(), create: vi.fn(), update: vi.fn(), capacity: vi.fn(),
@@ -46,6 +46,8 @@ beforeEach(() => {
   mocks.pipeline.mockResolvedValue({ slug: "fixture", audioPath: "fixture.mp3", transcript: [], durationSeconds: 60, wordCount: 1, costUsd: 0 });
   mocks.get.mockResolvedValue(undefined);
 });
+afterEach(() => vi.restoreAllMocks());
+
 describe("exact middleware route boundary", () => {
   it("preserves existing public contracts and rejects lookalike prefixes", async () => {
     for (const path of ["/login", "/api/auth/login", "/api/auth/logout", "/api/auth/register-device", "/api/podcast/feed/grimoire", "/rss/grimoire", "/api/library", "/api/podcast/episodes/any-manifest-slug/audio", "/icon.svg", "/the-grimoire-cover.png", "/_next/static/chunk.js"]) {
@@ -173,5 +175,56 @@ describe("generation and full RSS", () => {
     mocks.manifest.mockResolvedValue({ show: { title: "Fixture", description: "Fixture", link: "https://example.test", language: "en", author: "Fixture", email: "fixture@example.test", imageUrl: "https://example.test/cover.png", category: "Technology" }, episodes: [] });
     const response = await fullFeed(request("/", undefined, { "x-api-key": "fixture-operator" }));
     expect(response.status).toBe(200); expect(response.headers.get("cache-control")).toBe("private, no-store");
+  });
+});
+
+
+describe("provider diagnostics stay out of client DTOs and route logs", () => {
+  const marker = "SYNTHETIC_PROVIDER_SECRET_MARKER";
+  function failAfterProgress() {
+    const failure = new TypeError(`${marker} bearer=${a} raw-source-config`);
+    mocks.pipeline.mockImplementation(async (_config, _dir, progress) => {
+      await progress({ stage: "audio", message: marker, percent: 40 });
+      throw failure;
+    });
+  }
+  it("redacts existing raw message/error and only projects allowlisted operator diagnostics", async () => {
+    const ownership = await owner();
+    mocks.get.mockResolvedValue({ ...job(ownership), status: "error", message: marker, error: marker,
+      diagnostic: { code: "GENERATION_FAILED", errorType: "TypeError", stage: "audio", raw: marker, key: a } });
+    const device = await status(request("/", a), params);
+    const payload = await device.json();
+    expect(payload.message).toContain("Generation failed"); expect(payload.error).toBe("Generation failed");
+    expect(payload.diagnostic).toBeUndefined(); expect(JSON.stringify(payload)).not.toContain(marker);
+    const operator = await status(request("/", undefined, { "x-api-key": "fixture-operator" }), params);
+    const operatorPayload = await operator.json();
+    expect(operatorPayload.diagnostic).toEqual({ code: "GENERATION_FAILED", errorType: "TypeError", stage: "audio" });
+    expect(JSON.stringify(operatorPayload)).not.toContain(marker); expect(JSON.stringify(operatorPayload)).not.toContain(a);
+    mocks.get.mockResolvedValue({ ...job(ownership), status: "processing", stage: "audio", message: marker });
+    expect((await (await status(request("/", a), params)).json()).message).toBe("Generating audio clips...");
+  });
+  it("does not store or log a process exception marker, but retains safe operator stage diagnostics", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    mocks.get.mockResolvedValue(job(await owner())); failAfterProgress();
+    const response = await processJob(request("/", a), params);
+    expect(response.status).toBe(500); expect(await response.json()).toEqual({ error: "Generation failed" });
+    const stored = JSON.stringify(mocks.update.mock.calls);
+    expect(stored).not.toContain(marker); expect(stored).not.toContain(a);
+    expect(mocks.update).toHaveBeenCalledWith(id, expect.objectContaining({ status: "error", diagnostic: { code: "GENERATION_FAILED", errorType: "TypeError", stage: "audio" } }));
+    expect(JSON.stringify(log.mock.calls)).not.toContain(marker); expect(JSON.stringify(log.mock.calls)).not.toContain(a);
+    const operator = await processJob(request("/", undefined, { "x-api-key": "fixture-operator" }), params);
+    expect((await operator.json()).diagnostic).toEqual({ code: "GENERATION_FAILED", errorType: "TypeError", stage: "audio" });
+  });
+  it("sanitises synchronous generation response, stored failure and route logs", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    failAfterProgress();
+    const brief = { content: "Handwritten synthetic source for a mocked exception path. ".repeat(2) };
+    const response = await generate(request("/", a, {}, brief));
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ jobId: id, status: "error", error: "Generation failed" });
+    expect(JSON.stringify(mocks.update.mock.calls)).not.toContain(marker);
+    expect(JSON.stringify(log.mock.calls)).not.toContain(marker); expect(JSON.stringify(log.mock.calls)).not.toContain(a);
+    const operator = await generate(request("/", undefined, { "x-api-key": "fixture-operator" }, brief));
+    expect((await operator.json()).diagnostic).toEqual({ code: "GENERATION_FAILED", errorType: "TypeError", stage: "audio" });
   });
 });

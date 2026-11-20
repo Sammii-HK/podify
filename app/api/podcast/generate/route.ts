@@ -1,3 +1,4 @@
+import { type JobStage, safeDiagnostic, safeJobMessage, logJobFailure, GENERATION_ERROR } from "@/lib/job-messages";
 import "dotenv/config";
 import { resolvePrincipal, jobOwner, privateJson } from "@/lib/job-access";
 import { createJob, updateJob, isAtCapacity } from "@/lib/jobs";
@@ -127,19 +128,21 @@ export async function POST(request: Request) {
     const outputDir = process.env.VERCEL ? "/tmp/.podify-output" : ".podify-output";
     console.log(`[podify] Starting generation for job ${job.id}`);
 
+    let lastStage: JobStage = null;
     try {
       await updateJob(job.id, { status: "processing", message: "Starting..." });
 
       const result = await generateEpisode(config, outputDir, async (event) => {
+        lastStage = event.stage;
         try {
           await updateJob(job.id, {
             status: "processing",
             stage: event.stage,
-            message: event.message,
+            message: safeJobMessage("processing", event.stage),
             progress: event.percent,
           });
         } catch (err) {
-          console.error(`[podify] Failed to update progress for job ${job.id}:`, err);
+          logJobFailure(err, "PROGRESS_WRITE_FAILED", job.id, event.stage);
         }
       });
 
@@ -169,13 +172,13 @@ export async function POST(request: Request) {
         costUsd: result.costUsd,
       }});
     } catch (err) {
-      console.error(`[podify] Generation failed for job ${job.id}:`, err);
-      const message = err instanceof Error ? err.message : String(err);
-      await updateJob(job.id, { status: "error", message, error: message }).catch(() => {});
-      return privateJson({ jobId: job.id, status: "error", error: message }, { status: 500 });
+      const diagnostic = safeDiagnostic(err, "GENERATION_FAILED", lastStage);
+      logJobFailure(err, "GENERATION_FAILED", job.id, lastStage);
+      await updateJob(job.id, { status: "error", message: safeJobMessage("error", null), error: GENERATION_ERROR, diagnostic }).catch((updateErr: unknown) => logJobFailure(updateErr, "ERROR_WRITE_FAILED", job.id));
+      return privateJson({ jobId: job.id, status: "error", error: GENERATION_ERROR, ...(principal.kind === "operator" ? { diagnostic } : {}) }, { status: 500 });
     }
   } catch (err) {
-    console.error("[podify] Generation request failed", err);
+    logJobFailure(err, "REQUEST_FAILED");
     return privateJson(
       { error: "Generation request failed" },
       { status: 500 }

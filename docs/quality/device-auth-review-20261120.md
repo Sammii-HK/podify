@@ -31,3 +31,7 @@ The earlier `device-auth-source-audit-20261120.json` is explicitly a pre-fix VM 
 - Live session/device storage, multi-instance persistence/concurrency, provider generation and media playback remain untested. The previous disconnected UI fixtures are unchanged and are not auth/provider evidence.
 
 No push, merge, deploy, migration, key rotation or external publication was performed. The local guard does not make the product secure or release-ready.
+
+## Diagnostic follow-up
+
+The subsequent bounded provider-diagnostics batch sanitises raw legacy/current message/error projection and route exception logging, with structured operator-only diagnostics. See `provider-diagnostics-review-20261120.md`; its 75-test receipt supersedes this batch's 72-test count. Provider internals, historical logs and storage confidentiality remain outside that repair.

@@ -1,17 +1,22 @@
 {
   "name": "podify",
   "version": "2.0.0",
-  "description": "AI podcast generator — web app + CLI",
+  "description": "AI podcast generator \u2014 web app + CLI",
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm run lint && next build",
     "start": "next start",
     "generate": "tsx cli/main.ts",
     "batch": "tsx cli/main.ts --batch",
     "sync": "tsx cli/main.ts --rebuild-feed",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "test": "vitest run --maxWorkers=1 && npm run test:icons",
+    "test:watch": "vitest",
+    "lint": "npm run lint:icons && node scripts/generate-brand-icon.mjs --check && tsc --noEmit --incremental false",
+    "lint:icons": "node scripts/lint-icons.mjs",
+    "test:icons": "node --test scripts/icons.test.mjs",
+    "review:build": "node scripts/build-review.mjs",
+    "review:serve": "node scripts/serve-review.mjs"
   },
   "dependencies": {
     "@vercel/blob": "^2.2.0",
@@ -19,6 +24,7 @@
     "dotenv": "^16.4.0",
     "ffmpeg-static": "^5.3.0",
     "ffprobe-static": "^3.1.0",
+    "lucide-react": "0.577.0",
     "next": "^15.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
@@ -29,6 +35,8 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^5.1.4",
+    "esbuild": "0.27.4",
+    "jsdom": "27.4.0",
     "postcss": "^8.5.0",
     "tailwindcss": "^4.0.0",
     "tsx": "^4.7.0",

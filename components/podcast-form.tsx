@@ -1,219 +1,230 @@
 "use client";
-
-import { useState } from "react";
+import { useId } from "react";
+import { ArrowRight, FileText, Link, BookOpen } from "lucide-react";
 import VoiceSelector from "./voice-selector";
-
-interface FormData {
-  contentSource: "text" | "url" | "grimoire";
-  content: string;
-  url: string;
-  grimoirePath: string;
-  title: string;
-  format: string;
-  duration: string;
-  tone: string;
-  voices: string;
-  tts: string;
-  llm: string;
-  includeMusic: boolean;
-  instructions: string;
-}
-
-const FORMATS = [
-  { value: "conversation", label: "Conversation" },
-  { value: "interview", label: "Interview" },
-  { value: "solo_narration", label: "Solo Narration" },
-  { value: "study_notes", label: "Study Notes" },
-];
-
-const DURATIONS = [
-  { value: "5min", label: "5 min" },
-  { value: "10min", label: "10 min" },
-  { value: "15min", label: "15 min" },
-];
-
-const TONES = [
-  { value: "educational", label: "Educational" },
-  { value: "casual", label: "Casual" },
-  { value: "deep_dive", label: "Deep Dive" },
-  { value: "mystical", label: "Mystical" },
-];
-
+import { briefProblem, type PodcastFormValues } from "@/lib/client-workflow";
 export default function PodcastForm({
+  value,
+  onChange,
   onSubmit,
-  disabled,
+  disabled = false,
+  review = false,
 }: {
-  onSubmit: (data: FormData) => void;
+  value: PodcastFormValues;
+  onChange: (value: PodcastFormValues) => void;
+  onSubmit: (value: PodcastFormValues) => void;
   disabled?: boolean;
+  review?: boolean;
 }) {
-  const [form, setForm] = useState<FormData>({
-    contentSource: "text",
-    content: "",
-    url: "",
-    grimoirePath: "",
-    title: "",
-    format: "conversation",
-    duration: "5min",
-    tone: "educational",
-    voices: "luna_and_sol",
-    tts: "voicebox",
-    llm: "ollama",
-    includeMusic: false,
-    instructions: "",
-  });
-
-  const set = <K extends keyof FormData>(key: K, val: FormData[K]) =>
-    setForm((f) => ({ ...f, [key]: val }));
-
-  const hasContent =
-    (form.contentSource === "text" && form.content.length >= 50) ||
-    (form.contentSource === "url" && form.url.length > 0) ||
-    (form.contentSource === "grimoire" && form.grimoirePath.length > 0);
-
+  const id = useId(),
+    set = <K extends keyof PodcastFormValues>(
+      key: K,
+      val: PodcastFormValues[K],
+    ) => onChange({ ...value, [key]: val });
+  const sourceId = id + "-source",
+    problem = briefProblem(value);
   return (
     <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        onSubmit(form);
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (!disabled && !problem) onSubmit(value);
       }}
-      className="space-y-6"
+      className="brief-form"
     >
-      {/* Content Source Tabs */}
-      <div>
-        <label className="mb-2 block text-sm font-medium text-muted">
-          Content Source
-        </label>
-        <div className="mb-3 flex gap-1 rounded-lg bg-card p-1">
-          {(["text", "url", "grimoire"] as const).map((tab) => (
+      <fieldset disabled={disabled} className="form-fields">
+        <legend className="section-label">01 / Your source</legend>
+        <div
+          className="source-options"
+          role="group"
+          aria-label="Content source"
+        >
+          {(
+            [
+              ["text", "Paste text", FileText],
+              ["url", "Article URL", Link],
+              ["grimoire", "Grimoire", BookOpen],
+            ] as const
+          ).map(([key, label, Icon]) => (
             <button
-              key={tab}
               type="button"
-              onClick={() => set("contentSource", tab)}
-              className={`flex-1 rounded-md px-3 py-1.5 text-sm transition-colors ${
-                form.contentSource === tab
-                  ? "bg-accent/20 text-accent"
-                  : "text-muted hover:text-foreground"
-              }`}
+              key={key}
+              aria-pressed={value.contentSource === key}
+              onClick={() => set("contentSource", key)}
             >
-              {tab === "text" ? "Paste Text" : tab === "url" ? "URL" : "Grimoire"}
+              <Icon aria-hidden size={16} />
+              {label}
             </button>
           ))}
         </div>
-
-        {form.contentSource === "text" && (
+        <label htmlFor={sourceId}>
+          {value.contentSource === "text"
+            ? "Source text"
+            : value.contentSource === "url"
+              ? "Article URL"
+              : "Grimoire path"}
+        </label>
+        {value.contentSource === "text" ? (
           <textarea
-            value={form.content}
-            onChange={(e) => set("content", e.target.value)}
-            placeholder="Paste your content here (min 50 characters)..."
-            rows={6}
-            className="w-full rounded-lg border border-card-border bg-card p-3 text-sm text-foreground placeholder:text-muted/60 focus:border-accent focus:outline-none"
+            id={sourceId}
+            value={value.content}
+            onChange={(event) => set("content", event.target.value)}
+            rows={7}
+            placeholder="A piece you wrote, a passage worth discussing, something you want to hear differently…"
+            aria-describedby={id + "-source-help"}
           />
-        )}
-        {form.contentSource === "url" && (
+        ) : (
           <input
-            type="url"
-            value={form.url}
-            onChange={(e) => set("url", e.target.value)}
-            placeholder="https://example.com/article"
-            className="w-full rounded-lg border border-card-border bg-card p-3 text-sm text-foreground placeholder:text-muted/60 focus:border-accent focus:outline-none"
+            id={sourceId}
+            type={value.contentSource === "url" ? "url" : "text"}
+            value={
+              value.contentSource === "url" ? value.url : value.grimoirePath
+            }
+            onChange={(event) =>
+              value.contentSource === "url"
+                ? set("url", event.target.value)
+                : set("grimoirePath", event.target.value)
+            }
+            placeholder={
+              value.contentSource === "url"
+                ? "https://example.com/article"
+                : "/grimoire/witch-types/kitchen-witch"
+            }
+            aria-describedby={id + "-source-help"}
           />
         )}
-        {form.contentSource === "grimoire" && (
+        <div className="field-note" id={id + "-source-help"}>
+          <span>
+            {value.contentSource === "text"
+              ? "At least 50 characters. Use material you are happy to send for generation."
+              : value.contentSource === "url"
+                ? "Use the complete address of the article."
+                : "Use a path from Lunary’s Grimoire."}
+          </span>
+          {value.contentSource === "text" && (
+            <span>
+              {value.content.trim().length.toLocaleString()} characters
+            </span>
+          )}
+        </div>
+        <div className="field">
+          <label htmlFor={id + "-title"}>
+            Episode title <span>optional</span>
+          </label>
           <input
-            value={form.grimoirePath}
-            onChange={(e) => set("grimoirePath", e.target.value)}
-            placeholder="/grimoire/witch-types/kitchen-witch"
-            className="w-full rounded-lg border border-card-border bg-card p-3 text-sm text-foreground placeholder:text-muted/60 focus:border-accent focus:outline-none"
+            id={id + "-title"}
+            value={value.title}
+            onChange={(event) => set("title", event.target.value)}
+            placeholder="Give this listen a name"
           />
-        )}
-      </div>
-
-      {/* Title */}
-      <div>
-        <label className="mb-2 block text-sm font-medium text-muted">
-          Title <span className="text-muted/50">(optional)</span>
-        </label>
-        <input
-          value={form.title}
-          onChange={(e) => set("title", e.target.value)}
-          placeholder="Auto-generated if blank"
-          className="w-full rounded-lg border border-card-border bg-card p-3 text-sm text-foreground placeholder:text-muted/60 focus:border-accent focus:outline-none"
-        />
-      </div>
-
-      {/* Format / Duration / Tone */}
-      <div className="grid grid-cols-3 gap-4">
-        <div>
-          <label className="mb-2 block text-sm font-medium text-muted">Format</label>
-          <select
-            value={form.format}
-            onChange={(e) => set("format", e.target.value)}
-            className="w-full rounded-lg border border-card-border bg-card p-2.5 text-sm text-foreground focus:border-accent focus:outline-none"
-          >
-            {FORMATS.map((f) => (
-              <option key={f.value} value={f.value}>
-                {f.label}
-              </option>
-            ))}
-          </select>
         </div>
-        <div>
-          <label className="mb-2 block text-sm font-medium text-muted">Duration</label>
-          <select
-            value={form.duration}
-            onChange={(e) => set("duration", e.target.value)}
-            className="w-full rounded-lg border border-card-border bg-card p-2.5 text-sm text-foreground focus:border-accent focus:outline-none"
-          >
-            {DURATIONS.map((d) => (
-              <option key={d.value} value={d.value}>
-                {d.label}
-              </option>
-            ))}
-          </select>
+        <div className="section-heading">
+          <span className="section-label">02 / Shape the conversation</span>
         </div>
-        <div>
-          <label className="mb-2 block text-sm font-medium text-muted">Tone</label>
-          <select
-            value={form.tone}
-            onChange={(e) => set("tone", e.target.value)}
-            className="w-full rounded-lg border border-card-border bg-card p-2.5 text-sm text-foreground focus:border-accent focus:outline-none"
-          >
-            {TONES.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </select>
+        <div className="settings-grid">
+          {(
+            [
+              {
+                key: "format",
+                label: "Format",
+                options: [
+                  ["conversation", "Conversation"],
+                  ["interview", "Interview"],
+                  ["solo_narration", "Solo narration"],
+                  ["study_notes", "Study notes"],
+                ],
+              },
+              {
+                key: "duration",
+                label: "Target length",
+                options: [
+                  ["5min", "5 minutes"],
+                  ["10min", "10 minutes"],
+                  ["15min", "15 minutes"],
+                ],
+              },
+              {
+                key: "tone",
+                label: "Tone",
+                options: [
+                  ["educational", "Educational"],
+                  ["casual", "Casual"],
+                  ["deep_dive", "Deep dive"],
+                  ["mystical", "Mystical"],
+                ],
+              },
+            ] as const
+          ).map((field) => (
+            <div className="field" key={field.key}>
+              <label htmlFor={id + "-" + field.key}>{field.label}</label>
+              <select
+                id={id + "-" + field.key}
+                value={value[field.key]}
+                onChange={(event) =>
+                  set(
+                    field.key,
+                    event.target.value as PodcastFormValues[typeof field.key],
+                  )
+                }
+              >
+                {field.options.map(([key, label]) => (
+                  <option value={key} key={key}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ))}
         </div>
-      </div>
-
-      {/* Voice Presets */}
-      <div>
-        <label className="mb-2 block text-sm font-medium text-muted">Voices</label>
-        <VoiceSelector value={form.voices} onChange={(v) => set("voices", v)} />
-      </div>
-
-      {/* Custom Instructions */}
-      <div>
-        <label className="mb-2 block text-sm font-medium text-muted">
-          Custom Instructions <span className="text-muted/50">(optional)</span>
-        </label>
-        <input
-          value={form.instructions}
-          onChange={(e) => set("instructions", e.target.value)}
-          placeholder="e.g. Focus on practical tips, keep it light..."
-          className="w-full rounded-lg border border-card-border bg-card p-3 text-sm text-foreground placeholder:text-muted/60 focus:border-accent focus:outline-none"
-        />
-      </div>
-
-      {/* Submit */}
-      <button
-        type="submit"
-        disabled={disabled || !hasContent}
-        className="w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        Generate Podcast
-      </button>
+        <p className="field-note">
+          The finished length can vary from the target.
+        </p>
+        <fieldset className="voice-field">
+          <legend>Voices</legend>
+          <VoiceSelector
+            value={value.voices}
+            onChange={(voice) => set("voices", voice)}
+          />
+        </fieldset>
+        <details className="direction-details">
+          <summary>Fine-tune the direction</summary>
+          <label htmlFor={id + "-instructions"}>
+            Instructions <span>optional</span>
+          </label>
+          <textarea
+            id={id + "-instructions"}
+            value={value.instructions}
+            onChange={(event) => set("instructions", event.target.value)}
+            rows={3}
+            placeholder="What should the hosts focus on?"
+          />
+          <label className="check-field">
+            <input
+              type="checkbox"
+              checked={value.includeMusic}
+              onChange={(event) => set("includeMusic", event.target.checked)}
+            />
+            Include background music
+          </label>
+        </details>
+        <button
+          type="submit"
+          className="primary-button generate-button"
+          disabled={disabled || !!problem}
+        >
+          {review
+            ? "Review this brief"
+            : disabled
+              ? "Brief in use"
+              : "Generate episode"}
+          <ArrowRight aria-hidden size={17} />
+        </button>
+        <p className="submit-note">
+          {review
+            ? "Offline review only. No generation request will be sent."
+            : (problem ??
+              "Generation uses the configured script and voice services. Your brief stays in this tab if a request fails.")}
+        </p>
+      </fieldset>
     </form>
   );
 }

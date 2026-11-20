@@ -10,3 +10,7 @@ output/
 .next/
 .vercel
 .env*.local
+.env*
+*.tsbuildinfo
+.podify-review/
+.codex-artifacts/

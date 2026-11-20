@@ -1,110 +1,136 @@
 "use client";
-
 import { useEffect, useState } from "react";
-
-interface StatusResponse {
-  id: string;
-  status: "pending" | "processing" | "complete" | "error";
-  progress: number;
-  stage: string | null;
-  message: string;
-  result?: {
-    transcript: { speaker: string; text: string }[];
-    durationSeconds: number;
-    wordCount: number;
-    costUsd: number;
-  };
-  error?: string;
+import { AudioLines, Check, Circle, Pause } from "lucide-react";
+import {
+  monitorJob,
+  type JobSnapshot,
+  type CompleteJob,
+  type Fetcher,
+} from "@/lib/client-workflow";
+const stages = [
+  ["scripting", "Script", "Shaping the conversation"],
+  ["audio", "Voices", "Turning the script into speech"],
+  ["assembly", "Assembly", "Bringing the episode together"],
+] as const;
+export function ProgressDisplay({
+  snapshot,
+  elapsed = 0,
+  onStop,
+}: {
+  snapshot: JobSnapshot | null;
+  elapsed?: number;
+  onStop?: () => void;
+}) {
+  const index = stages.findIndex(([key]) => key === snapshot?.stage),
+    progress = snapshot?.progress ?? 0;
+  return (
+    <section className="progress-panel" aria-labelledby="progress-title">
+      <div className="panel-top">
+        <span className="section-label">In the studio</span>
+        <AudioLines aria-hidden size={21} />
+      </div>
+      <h2 id="progress-title">One episode, taking shape.</h2>
+      <p className="panel-copy">
+        {snapshot?.message || "Waiting for the first job update."}
+      </p>
+      <div
+        className="progress-track"
+        role="progressbar"
+        aria-label="Reported generation progress"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={snapshot ? progress : undefined}
+      >
+        <span style={{ width: `${progress}%` }} />
+      </div>
+      <div className="progress-meta">
+        <span>
+          {snapshot
+            ? `${Math.round(progress)}% reported`
+            : "Awaiting a job update"}
+        </span>
+        <span>
+          {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")}{" "}
+          checking
+        </span>
+      </div>
+      <ol className="stage-list">
+        {stages.map(([key, label, description], n) => (
+          <li
+            key={key}
+            className={n === index ? "current" : n < index ? "finished" : ""}
+            aria-current={n === index ? "step" : undefined}
+          >
+            {n < index ? (
+              <Check aria-hidden size={18} />
+            ) : (
+              <Circle aria-hidden size={18} />
+            )}
+            <div>
+              <strong>{label}</strong>
+              <span>{description}</span>
+            </div>
+          </li>
+        ))}
+      </ol>
+      <p className="panel-note">
+        Progress is reported by the job, not an estimate of time remaining.
+      </p>
+      {onStop && (
+        <button type="button" className="text-button" onClick={onStop}>
+          <Pause aria-hidden size={15} />
+          Stop checking in this tab
+        </button>
+      )}
+    </section>
+  );
 }
-
-const STAGE_LABELS: Record<string, string> = {
-  scripting: "Writing script",
-  audio: "Generating audio",
-  assembly: "Assembling podcast",
-  complete: "Complete",
-};
-
 export default function GenerationProgress({
   jobId,
   onComplete,
   onError,
+  onStop,
+  fetcher = fetch,
 }: {
+  fetcher?: Fetcher;
   jobId: string;
-  onComplete: (data: StatusResponse) => void;
-  onError: (error: string) => void;
+  onComplete: (job: CompleteJob) => void;
+  onError: (message: string) => void;
+  onStop: () => void;
 }) {
-  const [status, setStatus] = useState<StatusResponse | null>(null);
-  const [elapsed, setElapsed] = useState(0);
-
-  // Timer
+  const [snapshot, setSnapshot] = useState<JobSnapshot | null>(null),
+    [elapsed, setElapsed] = useState(0);
   useEffect(() => {
-    const interval = setInterval(() => setElapsed((e) => e + 1), 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Polling
-  useEffect(() => {
-    let active = true;
-
-    async function poll() {
-      while (active) {
-        try {
-          const res = await fetch(`/api/podcast/status/${jobId}`);
-          if (!res.ok) {
-            onError("Failed to fetch job status");
-            return;
-          }
-          const data: StatusResponse = await res.json();
-          setStatus(data);
-
-          if (data.status === "complete") {
-            onComplete(data);
-            return;
-          }
-          if (data.status === "error") {
-            onError(data.error || "Generation failed");
-            return;
-          }
-        } catch {
-          onError("Network error while polling status");
-          return;
-        }
-
-        await new Promise((r) => setTimeout(r, 1000));
-      }
-    }
-
-    poll();
+    const controller = new AbortController(),
+      started = performance.now();
+    setSnapshot(null);
+    setElapsed(0);
+    const timer = setInterval(
+      () => setElapsed(Math.floor((performance.now() - started) / 1000)),
+      1000,
+    );
+    monitorJob(jobId, {
+      fetcher,
+      signal: controller.signal,
+      onSnapshot: setSnapshot,
+    })
+      .then((job) => {
+        if (!controller.signal.aborted) onComplete(job);
+      })
+      .catch((error) => {
+        if (!controller.signal.aborted)
+          onError(
+            error instanceof Error
+              ? error.message
+              : "The status could not be checked. Your job reference is kept.",
+          );
+      });
     return () => {
-      active = false;
+      controller.abort();
+      clearInterval(timer);
     };
-  }, [jobId, onComplete, onError]);
-
-  const progress = status?.progress || 0;
-  const stage = status?.stage ? STAGE_LABELS[status.stage] || status.stage : "Starting...";
-  const minutes = Math.floor(elapsed / 60);
-  const seconds = elapsed % 60;
-
+  }, [jobId, onComplete, onError, fetcher]);
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-foreground">{stage}</span>
-        <span className="tabular-nums text-muted">
-          {minutes}:{String(seconds).padStart(2, "0")}
-        </span>
-      </div>
-
-      {/* Progress bar */}
-      <div className="h-2 overflow-hidden rounded-full bg-card-border">
-        <div
-          className="h-full rounded-full bg-accent transition-all duration-500"
-          style={{ width: `${progress}%` }}
-        />
-      </div>
-
-      <p className="text-xs text-muted">
-        {status?.message || "Preparing..."}
-      </p>
-    </div>
+    <ProgressDisplay snapshot={snapshot} elapsed={elapsed} onStop={onStop} />
   );
 }

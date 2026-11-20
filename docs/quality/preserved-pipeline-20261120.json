@@ -1,0 +1,76 @@
+{
+  "baseline": "460c62a",
+  "scope": "Tracked source bytes, not runtime or provider validation. Main untracked files were never read or copied.",
+  "files": [
+    {
+      "path": "lib/pipeline.ts",
+      "gitBlob": "b33786d7e8ebb1e16c89003b29c1405c915df520",
+      "unchanged": true
+    },
+    {
+      "path": "lib/generate-script.ts",
+      "gitBlob": "e2486b2cc2f0f09d9ce876b1880d2a498df28aca",
+      "unchanged": true
+    },
+    {
+      "path": "lib/generate-audio.ts",
+      "gitBlob": "99d2f6a1d960100d9eaae3e72462366421de8416",
+      "unchanged": true
+    },
+    {
+      "path": "lib/assemble-podcast.ts",
+      "gitBlob": "12800a0b43144af1d826d3440c0a257acf3dedaa",
+      "unchanged": true
+    },
+    {
+      "path": "lib/jobs.ts",
+      "gitBlob": "96bda865ed82a2b40af7428f5ea0a9eb6b4950f3",
+      "unchanged": true
+    },
+    {
+      "path": "lib/device-keys.ts",
+      "gitBlob": "deb867d904b1156cbc92b09392fa2a4ba02fe1a7",
+      "unchanged": true
+    },
+    {
+      "path": "lib/auth.ts",
+      "gitBlob": "8d2ae9d49668b88e8c21cb1efb080281333f6689",
+      "unchanged": true
+    },
+    {
+      "path": "lib/storage.ts",
+      "gitBlob": "21e858ddd24347d9a052402bafe12a954df0e7de",
+      "unchanged": true
+    },
+    {
+      "path": "lib/ffmpeg.ts",
+      "gitBlob": "4ccc8080423388696ad5a2a954b71907eb26b19a",
+      "unchanged": true
+    },
+    {
+      "path": "lib/feed.ts",
+      "gitBlob": "73a9f933e42e4f22d2bf8a171ebc76b99acd33a7",
+      "unchanged": true
+    },
+    {
+      "path": "lib/fetch-content.ts",
+      "gitBlob": "3c262b18be41c205a51e1232752ae696f31973fd",
+      "unchanged": true
+    },
+    {
+      "path": "app/api/podcast/generate/route.ts",
+      "gitBlob": "5c634a9b713dfb0ae32f2cb8236567839cfc7a01",
+      "unchanged": true
+    },
+    {
+      "path": "app/api/podcast/process/[jobId]/route.ts",
+      "gitBlob": "c5464a58f1f3e6b0f332b6c57f8df7e09a276f73",
+      "unchanged": true
+    },
+    {
+      "path": "app/api/podcast/status/[jobId]/route.ts",
+      "gitBlob": "613ea72d71514fda330e3be6cfc7a735eb15cc71",
+      "unchanged": true
+    }
+  ]
+}

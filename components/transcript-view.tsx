@@ -1,59 +1,58 @@
 "use client";
-
-import { useState } from "react";
-
-interface Line {
-  speaker: string;
-  text: string;
-}
-
+import { useId, useState } from "react";
+import { ChevronDown, FileText } from "lucide-react";
 export default function TranscriptView({
   transcript,
 }: {
-  transcript: Line[];
+  transcript: { speaker: string; text: string }[];
 }) {
-  const [expanded, setExpanded] = useState(false);
-  const lines = expanded ? transcript : transcript.slice(0, 8);
-
+  const [expanded, setExpanded] = useState(false),
+    id = useId(),
+    lines = expanded ? transcript : transcript.slice(0, 8);
   return (
-    <div className="space-y-3">
-      <h3 className="text-sm font-medium text-muted">Transcript</h3>
-
-      <div className="space-y-2">
-        {lines.map((line, i) => {
-          const isA = line.speaker === "HOST_A";
-          return (
-            <div
-              key={i}
-              className={`flex ${isA ? "justify-start" : "justify-end"}`}
-            >
-              <div
-                className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
-                  isA
-                    ? "bg-accent/10 text-foreground"
-                    : "bg-card text-foreground"
-                }`}
-              >
-                <span className="mb-0.5 block text-[10px] font-semibold uppercase text-muted">
-                  {line.speaker === "HOST_A" ? "Host A" : "Host B"}
-                </span>
-                {line.text}
-              </div>
-            </div>
-          );
-        })}
+    <section className="transcript-panel" aria-labelledby={id + "-title"}>
+      <div className="panel-top">
+        <span className="section-label">Read along</span>
+        <FileText aria-hidden size={19} />
       </div>
-
+      <div className="transcript-heading">
+        <h2 id={id + "-title"}>The conversation</h2>
+        <span>{transcript.length} lines</span>
+      </div>
+      {!transcript.length ? (
+        <p className="panel-copy">
+          No transcript was supplied for this episode.
+        </p>
+      ) : (
+        <ol id={id + "-lines"} className="transcript-lines">
+          {lines.map((line, index) => (
+            <li key={index}>
+              <span>
+                {line.speaker === "HOST_A"
+                  ? "Host A"
+                  : line.speaker === "HOST_B"
+                    ? "Host B"
+                    : line.speaker}
+              </span>
+              <p>{line.text}</p>
+            </li>
+          ))}
+        </ol>
+      )}
       {transcript.length > 8 && (
         <button
+          type="button"
+          className="text-button"
+          aria-expanded={expanded}
+          aria-controls={id + "-lines"}
           onClick={() => setExpanded(!expanded)}
-          className="text-xs text-accent hover:underline"
         >
           {expanded
-            ? "Show less"
-            : `Show all ${transcript.length} lines`}
+            ? "Show fewer lines"
+            : `Read all ${transcript.length} lines`}
+          <ChevronDown aria-hidden size={15} />
         </button>
       )}
-    </div>
+    </section>
   );
 }

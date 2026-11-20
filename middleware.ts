@@ -14,6 +14,7 @@ const PUBLIC_PATHS = [
 ];
 
 function isPublic(pathname: string): boolean {
+  if (pathname === "/icon.svg") return true; // Public generated brand asset only.
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) return true;
   // /api/podcast/episodes/{slug}/audio
   if (/^\/api\/podcast\/episodes\/[^/]+\/audio$/.test(pathname)) return true;

@@ -1,16 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { EpisodeMeta } from "@/lib/types";
 
-// Unit tests for the episode list filtering logic (no DOM needed)
-
-function filterEpisodes(
-  episodes: EpisodeMeta[],
-  filter: "all" | "grimoire"
-): EpisodeMeta[] {
-  return filter === "grimoire"
-    ? episodes.filter((e) => e.source === "grimoire")
-    : episodes;
-}
+import { filterEpisodes } from "../episode-list";
 
 const EPISODES: EpisodeMeta[] = [
   {

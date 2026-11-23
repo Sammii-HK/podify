@@ -21,11 +21,11 @@ export default function PodcastPlayer({
       safeAudioUrl(audioUrl) ||
       `/api/podcast/${encodeURIComponent(jobId)}/audio`,
     ref = useRef<HTMLAudioElement>(null),
-    [failed, setFailed] = useState(false);
+    [failed, setFailed] = useState(false),
+    external = /^https?:/.test(source);
   useEffect(() => {
     setFailed(false);
     const player = ref.current;
-    const external = source.startsWith("http");
     return () => {
       if (player) {
         player.pause();

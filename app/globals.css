@@ -1,6 +1,6 @@
 @import "tailwindcss";
 :root {
-  color-scheme: dark;
+  color-scheme: light dark;
   --background: #0e1111;
   --foreground: #f2f0e9;
   --muted: #a2a8a1;
@@ -10,6 +10,45 @@
   --card-border: #303831;
   --success: #a4c9a5;
   --error: #efaba1;
+  --heading-soft: #a9aea5;
+  --field: #111612;
+  --placeholder: #818c81;
+  --selected: #2b342e;
+  --voice-selected: #24252d;
+  --on-accent: #18131e;
+  --notice-border: #555446;
+  --notice-text: #e8d7ad;
+  --error-border: #6d433d;
+  --error-text: #f0b7ad;
+  --error-bg: #281c1a;
+  --banner-bg: #292235;
+  --banner-text: #dfd0fa;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --background: #f5f3ec;
+    --foreground: #161b19;
+    --muted: #565d57;
+    --accent: #6544b0;
+    --accent-hover: #523497;
+    --card: #fdfcf8;
+    --card-border: #868e85;
+    --success: #2e6a39;
+    --error: #a3392b;
+    --heading-soft: #5c645d;
+    --field: #ffffff;
+    --placeholder: #687068;
+    --selected: #e2e6dc;
+    --voice-selected: #efe9fb;
+    --on-accent: #ffffff;
+    --notice-border: #94803f;
+    --notice-text: #5e4914;
+    --error-border: #c98e85;
+    --error-text: #9a3426;
+    --error-bg: #fbecea;
+    --banner-bg: #ebe4f8;
+    --banner-text: #46357a;
+  }
 }
 @theme inline {
   --color-background: var(--background);
@@ -167,7 +206,7 @@ h1 {
   line-height: 1.03;
 }
 h1 span {
-  color: #a9aea5;
+  color: var(--heading-soft);
 }
 .studio-hero > p,
 .feed-hero > div > p {
@@ -251,7 +290,7 @@ h1 span {
   border-radius: 0.4rem;
 }
 .source-options button[aria-pressed="true"] {
-  background: #2b342e;
+  background: var(--selected);
   color: var(--foreground);
 }
 .brief-form input:not([type="radio"]):not([type="checkbox"]),
@@ -261,7 +300,7 @@ h1 span {
   width: 100%;
   min-width: 0;
   border: 1px solid var(--card-border);
-  background: #111612;
+  background: var(--field);
   border-radius: 0.5rem;
   padding: 0.8rem;
   color: var(--foreground);
@@ -270,7 +309,7 @@ h1 span {
 }
 .brief-form input::placeholder,
 .brief-form textarea::placeholder {
-  color: #818c81;
+  color: var(--placeholder);
   opacity: 1;
 }
 .brief-form textarea {
@@ -328,7 +367,7 @@ h1 span {
   align-items: start;
   border: 1px solid var(--card-border);
   padding: 1rem 0.8rem;
-  background: #111612;
+  background: var(--field);
   border-radius: 0.5rem;
   cursor: pointer;
   min-height: 90px;
@@ -346,7 +385,7 @@ h1 span {
 }
 .voice-card.selected {
   border-color: var(--accent);
-  background: #24252d;
+  background: var(--voice-selected);
 }
 .voice-card:focus-within {
   outline: 2px solid var(--accent);
@@ -430,7 +469,7 @@ h1 span {
 }
 .primary-button {
   background: var(--accent);
-  color: #18131e;
+  color: var(--on-accent);
   border-color: var(--accent);
 }
 .primary-button:hover:not(:disabled) {
@@ -588,19 +627,19 @@ h1 span {
   flex-direction: column;
   gap: 0.4rem;
   padding: 1rem;
-  border: 1px solid #555446;
+  border: 1px solid var(--notice-border);
   border-radius: 0.5rem;
   font-size: 0.76rem;
   line-height: 1.75;
-  color: #e8d7ad;
+  color: var(--notice-text);
 }
 .brief-panel > .notice {
   margin-bottom: 1.5rem;
 }
 .notice.error {
-  border-color: #6d433d;
-  color: #f0b7ad;
-  background: #281c1a;
+  border-color: var(--error-border);
+  color: var(--error-text);
+  background: var(--error-bg);
 }
 .notice strong {
   font-weight: 500;
@@ -873,8 +912,8 @@ h1 span {
 }
 .review-banner {
   padding: 0.8rem 1.5rem;
-  background: #292235;
-  color: #dfd0fa;
+  background: var(--banner-bg);
+  color: var(--banner-text);
   text-align: center;
   font-size: 0.75rem;
   line-height: 1.8;
